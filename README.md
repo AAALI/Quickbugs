@@ -234,6 +234,108 @@ app.post("/api/jira/upload-attachment", upload.single("file"), async (req, res) 
 });
 ```
 
+#### Example: Linear proxy (Node.js / Express)
+
+Linear uses a **GraphQL API**. Your proxy forwards mutations to `https://api.linear.app/graphql` with the API key server-side.
+
+```ts
+const LINEAR_API = "https://api.linear.app/graphql";
+const LINEAR_API_KEY = process.env.LINEAR_API_KEY; // e.g. "lin_api_..."
+
+// Helper: execute a Linear GraphQL mutation
+async function linearGql(query: string, variables: Record<string, unknown>) {
+  const res = await fetch(LINEAR_API, {
+    method: "POST",
+    headers: {
+      Authorization: LINEAR_API_KEY,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const body = await res.json();
+  if (!res.ok || body.errors?.length) {
+    throw new Error(body.errors?.[0]?.message || `Linear API error (${res.status})`);
+  }
+  return body.data;
+}
+
+// POST /api/linear/create-issue — create issue via GraphQL
+app.post("/api/linear/create-issue", express.json(), async (req, res) => {
+  const { title, description, teamId, projectId } = req.body;
+
+  try {
+    const data = await linearGql(
+      `mutation IssueCreate($input: IssueCreateInput!) {
+        issueCreate(input: $input) {
+          success
+          issue { id identifier url }
+        }
+      }`,
+      {
+        input: {
+          title,
+          description,
+          teamId,
+          ...(projectId ? { projectId } : {}),
+        },
+      }
+    );
+
+    const issue = data.issueCreate.issue;
+    res.status(201).json({
+      id: issue.id,
+      identifier: issue.identifier,
+      url: issue.url,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/linear/upload — upload file via GraphQL fileUpload + PUT
+app.post("/api/linear/upload", upload.single("file"), async (req, res) => {
+  const file = req.file;
+  const contentType = req.body.contentType || file.mimetype;
+  const filename = req.body.filename || file.originalname;
+
+  try {
+    // 1. Request an upload URL from Linear
+    const data = await linearGql(
+      `mutation FileUpload($contentType: String!, $filename: String!, $size: Int!) {
+        fileUpload(contentType: $contentType, filename: $filename, size: $size) {
+          success
+          uploadFile { uploadUrl assetUrl headers { key value } }
+        }
+      }`,
+      { contentType, filename, size: file.size }
+    );
+
+    const { uploadUrl, assetUrl, headers } = data.fileUpload.uploadFile;
+
+    // 2. PUT the file to the upload URL with Linear's signed headers
+    const uploadHeaders: Record<string, string> = {};
+    for (const h of headers) uploadHeaders[h.key] = h.value;
+
+    const uploadRes = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: uploadHeaders,
+      body: file.buffer,
+    });
+
+    if (!uploadRes.ok) throw new Error(`Upload failed (${uploadRes.status})`);
+
+    res.json({ assetUrl });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+```
+
+> **Key points for Linear proxy implementers:**
+> - The `create-issue` endpoint receives `{ title, description, teamId, projectId }` — use these directly in the `IssueCreateInput` GraphQL mutation. The `description` is already pre-formatted by the library.
+> - The `upload` endpoint must: (1) call `fileUpload` mutation to get a signed upload URL, (2) `PUT` the file binary to that URL with the returned headers, (3) return the `assetUrl`.
+> - `projectId` is optional — only include it in the mutation input if it's present in the request body.
+
 ---
 
 ### Legacy: single endpoint
