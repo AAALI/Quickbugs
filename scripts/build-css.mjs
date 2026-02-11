@@ -46,7 +46,17 @@ css = stripLayerWrappers(css);
 // 4. Resolve theme variables to hardcoded values
 css = resolveThemeVariables(css);
 
-// 5. Write self-contained output
+// 5. Strip @property declarations (TW v4 specific, conflicts with TW v3 preflight)
+css = stripAtProperty(css);
+
+// 6. Strip @supports fallback block for --tw-* variable initialization
+//    (the @property declarations these fall back from are already stripped)
+css = stripTwSupportsBlock(css);
+
+// 7. Convert CSS `translate` property to `transform: translate()` for TW v3 compat
+css = convertTranslateProperty(css);
+
+// 8. Write self-contained output
 writeFileSync(OUT_PATH, css, "utf-8");
 
 // 6. Clean up temp file
@@ -64,6 +74,64 @@ console.log(
 );
 if (themeLeaks.length > 0) {
   console.warn(`  ⚠ Unresolved theme vars: ${[...new Set(themeLeaks)].join(", ")}`);
+}
+
+// ===========================================================================
+// @property stripping (TW v4 → TW v3 compat)
+// ===========================================================================
+
+/**
+ * Remove all `@property --tw-*{…}` declarations. TW v4 uses these to define
+ * custom properties with type info + initial values, but they conflict with
+ * TW v3's preflight which sets the same variables via `*, ::before, ::after`.
+ */
+function stripAtProperty(css) {
+  // @property --name { syntax:"*"; inherits:false; initial-value:0 }
+  return css.replace(/@property\s+--[\w-]+\s*\{[^}]*\}/g, "");
+}
+
+// ===========================================================================
+// @supports fallback block stripping
+// ===========================================================================
+
+/**
+ * Remove the `@supports (…) { *, :before, :after, ::backdrop { --tw-…:… } }`
+ * block that TW v4 emits as a fallback for browsers without @property support.
+ * Since we stripped @property, this block would re-initialize --tw-* vars with
+ * values that conflict with TW v3's own preflight.
+ */
+function stripTwSupportsBlock(css) {
+  // Match @supports blocks that contain --tw- variable initialization
+  return css.replace(
+    /@supports\s+\(\(?\(-webkit-hyphens:none\)[^{]*\{[^}]*--tw-[\s\S]*?\}\s*\}/g,
+    ""
+  );
+}
+
+// ===========================================================================
+// translate → transform conversion (TW v4 → TW v3 compat)
+// ===========================================================================
+
+/**
+ * Convert CSS `translate: X Y` property to `transform: translate(X, Y)`.
+ * TW v4 uses the newer CSS `translate` property; TW v3 uses `transform`.
+ * The `translate` property can conflict with TW v3's preflight transform reset.
+ */
+function convertTranslateProperty(css) {
+  // Match `translate:VALUE` within rule declarations (not inside var names)
+  // The translate property in the built CSS looks like:
+  //   translate:var(--tw-translate-x)var(--tw-translate-y)
+  // or after var resolution, hardcoded values
+  return css.replace(
+    /([{;])\s*translate\s*:\s*([^;}]+)/g,
+    (match, prefix, value) => {
+      // Split the two values (x y) — TW v4 emits them space-separated
+      const trimmed = value.trim();
+      // If it contains var() refs, just convert to transform
+      // The value is "Xval Yval" or "Xval" format
+      return `${prefix}transform:translate(${trimmed.replace(/\)\s*(?=\S)/, "), ")})`;
+    }
+  );
 }
 
 // ===========================================================================

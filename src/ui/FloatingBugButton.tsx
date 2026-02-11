@@ -87,7 +87,8 @@ export function FloatingBugButton() {
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-4 right-4 z-[1100] flex flex-col items-end"
+      style={{ position: 'fixed', bottom: '1rem', right: '1rem', zIndex: 1100 }}
+      className="flex flex-col items-end"
       data-bug-reporter-ui="true"
     >
       {isRecording ? (
