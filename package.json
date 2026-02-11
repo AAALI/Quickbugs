@@ -1,6 +1,6 @@
 {
   "name": "quick-bug-reporter-react",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Drop-in bug reporter for React apps — screenshot, video capture, annotation, and Linear/Jira integration.",
   "author": "Ali Abdulkadir Ali",
   "homepage": "https://github.com/AAALI/bug-reporter-react#readme",
@@ -33,9 +33,9 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup && npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
+    "build": "tsup && node scripts/build-css.mjs",
     "build:js": "tsup",
-    "build:css": "npx @tailwindcss/cli -i src/styles.css -o dist/styles.css --minify",
+    "build:css": "node scripts/build-css.mjs",
     "dev": "tsup --watch",
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build"

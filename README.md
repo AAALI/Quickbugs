@@ -27,15 +27,27 @@ pnpm add quick-bug-reporter-react
 
 ### 1. Import styles
 
-The library ships a pre-built CSS file. Import it once in your app entry point:
+The library ships a **self-contained, pre-built CSS file** that works with any setup — Tailwind v3, Tailwind v4, or no Tailwind at all.
+
+Import it once in your app entry point:
 
 ```ts
 import "quick-bug-reporter-react/styles.css";
 ```
 
-> **Already using Tailwind CSS v4?** You can skip the CSS import and instead add
-> `@source "node_modules/quick-bug-reporter-react/dist";` to your main CSS file so
-> Tailwind picks up the library's utility classes.
+> **Tailwind v3 users:** The CSS file is already fully resolved — no Tailwind v4
+> theme variables or `@layer` blocks that could conflict with your v3 pipeline.
+> Just import as shown above and it works.
+>
+> **Tailwind v4 users:** The import above works out of the box. Alternatively you
+> can add `@source "node_modules/quick-bug-reporter-react/dist";` to your main
+> CSS file so Tailwind picks up the library's utility classes directly.
+>
+> **No Tailwind?** The import above is all you need. If your bundler doesn't
+> handle CSS imports, add a `<link>` tag pointing to the file in `node_modules`:
+> ```html
+> <link rel="stylesheet" href="/node_modules/quick-bug-reporter-react/dist/styles.css" />
+> ```
 
 ### 2. Add the provider and UI
 
