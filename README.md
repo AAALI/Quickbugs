@@ -1,4 +1,4 @@
-# bug-reporter-react
+# quick-bug-reporter-react
 
 Drop-in bug reporter for React apps — screenshot capture, video recording, annotation, and Linear/Jira integration.
 
@@ -14,9 +14,9 @@ Drop-in bug reporter for React apps — screenshot capture, video recording, ann
 ## Install
 
 ```bash
-npm install bug-reporter-react
+npm install quick-bug-reporter-react
 # or
-pnpm add bug-reporter-react
+pnpm add quick-bug-reporter-react
 ```
 
 ## Requirements
@@ -30,11 +30,11 @@ pnpm add bug-reporter-react
 The library ships a pre-built CSS file. Import it once in your app entry point:
 
 ```ts
-import "bug-reporter-react/styles.css";
+import "quick-bug-reporter-react/styles.css";
 ```
 
 > **Already using Tailwind CSS v4?** You can skip the CSS import and instead add
-> `@source "node_modules/bug-reporter-react/dist";` to your main CSS file so
+> `@source "node_modules/quick-bug-reporter-react/dist";` to your main CSS file so
 > Tailwind picks up the library's utility classes.
 
 ### 2. Add the provider and UI
@@ -45,7 +45,7 @@ import {
   FloatingBugButton,
   BugReporterModal,
   LinearIntegration,
-} from "bug-reporter-react";
+} from "quick-bug-reporter-react";
 
 const linear = new LinearIntegration({
   submitProxyEndpoint: "/api/bug-report",
@@ -79,7 +79,7 @@ Both integrations support two modes:
 ### Linear
 
 ```ts
-import { LinearIntegration } from "bug-reporter-react";
+import { LinearIntegration } from "quick-bug-reporter-react";
 
 // ✅ Recommended: Backend proxy (works everywhere)
 const linear = new LinearIntegration({
@@ -98,7 +98,7 @@ const linear = new LinearIntegration({
 ### Jira
 
 ```ts
-import { JiraIntegration } from "bug-reporter-react";
+import { JiraIntegration } from "quick-bug-reporter-react";
 
 // ✅ Recommended: Backend proxy
 const jira = new JiraIntegration({

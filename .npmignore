@@ -1,0 +1,13 @@
+# Source code (dist/ is shipped via "files" in package.json)
+src/
+test-app/
+tsup.config.ts
+tsconfig.json
+.github/
+.vscode/
+
+# Dev configs
+.env
+.env.*
+*.tsbuildinfo
+.DS_Store
