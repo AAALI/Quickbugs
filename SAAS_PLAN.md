@@ -1,6 +1,12 @@
-# SaaS Conversion Plan — `quick-bug-reporter-react`
+# SaaS Plan — QuickBugs 🐞
 
-> **Design philosophy:** Pass-through proxy with lightweight analytics. Bug reports go straight to Jira/Linear — we don't store media. But we **do** log metadata per report (browser, OS, app version, capture mode) to power a Sentry-style dashboard. **Two services: Supabase + Cloudflare. $0/month.**
+> **Product:** QuickBugs — Lightweight bug reporting infrastructure for Jira and Linear teams.
+>
+> **Design philosophy:** Pass-through proxy with lightweight analytics. Bug reports go straight to Jira/Linear — we don't store media. We log metadata per report (browser, OS, app version, capture mode) to power a Sentry-style dashboard. **Two services: Supabase + Cloudflare. $0/month.**
+>
+> **Beta:** All features free during beta. No billing until post-launch.
+>
+> Brand: [`Brand_Guid.md`](./Brand_Guid.md) · User journey: [`USER_JOURNEY.md`](./USER_JOURNEY.md) · Roadmap: [`PROJECT_PLAN.md`](./PROJECT_PLAN.md)
 
 ---
 
@@ -363,6 +369,14 @@ Upgrade to Supabase Pro ($25/mo): 8GB DB, 2M invocations, 250GB BW, daily backup
 
 ## Pricing Strategy
 
+### Beta (current)
+
+All features free. No credit card required. No report limits.
+
+> "Start free. Upgrade when you grow." — Brand Guide
+
+### Post-Beta (planned)
+
 | Plan | Price | Reports/mo | Projects | Analytics Retention |
 |------|:---:|:---:|:---:|:---:|
 | **Free** | $0 | 50 | 1 | 30 days |
@@ -370,7 +384,7 @@ Upgrade to Supabase Pro ($25/mo): 8GB DB, 2M invocations, 250GB BW, daily backup
 | **Team** | $79 | 5,000 | Unlimited | 365 days |
 | **Enterprise** | Custom | Unlimited | Unlimited | Custom |
 
-Usage tracked via `report_events` count. Stripe metered billing.
+No seat pricing. No bandwidth surprises. Usage tracked via `report_events` count. Stripe metered billing.
 
 ---
 
@@ -522,31 +536,35 @@ quick-bug-reporter/
 - [x] Test apps updated to point to local workspace packages
 - [x] README.md updated for monorepo structure
 
-### Phase 1 — SaaS Foundation (1-2 weeks)
+### Phase 1 — Supabase + Landing + Auth + Onboarding (2 weeks)
 
-- [ ] Create Supabase project
-- [ ] Run migration (5 tables + RLS + Vault)
+- [ ] Create Supabase project + run migration (5 tables + RLS + Vault)
+- [ ] Configure Auth providers (magic link, GitHub, Google)
+- [ ] Scaffold Next.js app in `apps/dashboard/` (landing + dashboard in one app)
+- [ ] Landing page with QuickBugs branding (see [`Brand_Guid.md`](./Brand_Guid.md))
+- [ ] Auth: magic link (Supabase `signInWithOtp`) + GitHub/Google OAuth
+- [ ] Onboarding wizard (5 steps): create org → create project → connect tracker → install SDK → verify first report
+- [ ] Onboarding state machine in `user_metadata`
+- [ ] Full flow documented in [`USER_JOURNEY.md`](./USER_JOURNEY.md)
+
+### Phase 2 — Edge Function + CloudIntegration (1-2 weeks)
+
 - [ ] Build `ingest` Edge Function with UA parsing + analytics logging
 - [ ] Add `CloudIntegration` to `packages/core/src/integrations/cloud.ts`
+- [ ] Wire up onboarding verify step (polling for first report)
+- [ ] Wire up "Test Connection" button (dry-run credential check)
 - [ ] Test end-to-end: SDK → Edge Function → Jira/Linear → report_events logged
 - [ ] Deploy via `supabase functions deploy`
 
-### Phase 2 — Dashboard MVP (2 weeks)
+### Phase 3 — Dashboard + Beta Launch (2 weeks)
 
-- [ ] Scaffold Next.js app in `apps/dashboard/` with Supabase Auth
+- [ ] Dashboard layout: sidebar nav, project switcher, empty states
 - [ ] Project CRUD + key generation
 - [ ] Integration config (Jira/Linear credential forms → Vault)
 - [ ] **Analytics page** (bug count chart, browser/OS/version breakdowns)
 - [ ] Recent reports table with external links
-- [ ] Deploy to **Cloudflare Pages** (`npx wrangler pages deploy`)
-
-### Phase 3 — Billing + Launch (1 week)
-
-- [ ] Stripe Checkout for Pro/Team plans
-- [ ] Plan enforcement in Edge Function
-- [ ] Data retention cleanup (pg_cron per plan tier)
-- [ ] Landing page
-- [ ] Launch on Product Hunt / HN / X
+- [ ] Deploy to **Cloudflare Pages** (`quickbugs.dev`)
+- [ ] Beta launch — all features free, no credit card required
 
 ### Phase 4 — React Native SDK (2-3 weeks)
 
@@ -556,8 +574,11 @@ quick-bug-reporter/
 - [ ] Test with Expo dev client example app
 - [ ] Publish to npm
 
-### Phase 5 — Growth (ongoing)
+### Phase 5 — Billing + Growth (post-beta, ongoing)
 
+- [ ] Stripe Checkout for Pro/Team plans
+- [ ] Plan enforcement in Edge Function
+- [ ] Data retention cleanup (pg_cron per plan tier)
 - [ ] Team invites + roles
 - [ ] Advanced analytics (trends, regressions, comparisons)
 - [ ] Webhook notifications on new reports

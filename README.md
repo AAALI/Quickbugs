@@ -1,6 +1,6 @@
-# Quick Bug Reporter
+# QuickBugs 🐞
 
-Bug reporter SDKs for React (web) and React Native (mobile) — screenshot capture, video recording, annotation, and Linear/Jira integration.
+Lightweight bug reporting infrastructure for Jira and Linear teams. Forward bugs. See patterns. Ship faster.
 
 ## Packages
 
@@ -18,18 +18,20 @@ Bug reporter SDKs for React (web) and React Native (mobile) — screenshot captu
 ## Monorepo Structure
 
 ```
-quick-bug-reporter/
+quickbugs/
 ├── packages/
 │   ├── core/               # Shared logic (types, NetworkLogger, ConsoleCapture, integrations)
 │   ├── react/              # Web SDK — React 18+/19+
 │   └── react-native/       # Mobile SDK — React Native (scaffold)
+├── apps/                   # Dashboard + landing page (coming soon)
 ├── test-app-html/          # Minimal HTML test app
 ├── test-app-tw3/           # Tailwind v3 test app
 ├── test-app-tw4/           # Tailwind v4 test app
 ├── turbo.json              # Turborepo task config
 ├── pnpm-workspace.yaml     # pnpm workspace definition
-├── REACT_NATIVE_SDK.md     # RN SDK research & implementation plan
-└── SAAS_PLAN.md            # SaaS backend architecture plan
+├── PROJECT_PLAN.md         # Master roadmap
+├── SAAS_PLAN.md            # SaaS backend architecture
+└── REACT_NATIVE_SDK.md     # RN SDK research & plan
 ```
 
 ## Development
@@ -78,8 +80,11 @@ Each SDK (`react`, `react-native`) bundles the core at build time via tsup's `no
 ## Documentation
 
 - **[Web SDK (React)](./packages/react/README.md)** — Full usage docs, integration setup, proxy examples
+- **[Project Plan](./PROJECT_PLAN.md)** — Master roadmap (phases, status, ETAs)
+- **[User Journey](./USER_JOURNEY.md)** — End-to-end onboarding flow with wireframes
+- **[SaaS Plan](./SAAS_PLAN.md)** — Backend architecture, data model, security
+- **[Brand Guide](./Brand_Guid.md)** — QuickBugs brand identity and copy rules
 - **[React Native SDK Plan](./REACT_NATIVE_SDK.md)** — Research, architecture, and implementation phases
-- **[SaaS Backend Plan](./SAAS_PLAN.md)** — Cloud analytics dashboard architecture
 
 ## License
 

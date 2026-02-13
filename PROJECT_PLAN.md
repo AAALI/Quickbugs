@@ -1,6 +1,8 @@
-# Project Plan — Quick Bug Reporter
+# Project Plan — QuickBugs 🐞
 
-> **Priority order:** SaaS backend + dashboard → React Native SDK → Growth features.
+> **Priority order:** Landing page + auth + onboarding → Edge Function + CloudIntegration → Dashboard + beta launch → React Native SDK → Billing + growth.
+>
+> Brand reference: [`Brand_Guid.md`](./Brand_Guid.md) · User journey: [`USER_JOURNEY.md`](./USER_JOURNEY.md)
 
 ---
 
@@ -9,11 +11,11 @@
 | Phase | Status | ETA |
 |-------|:------:|:---:|
 | **0 — Monorepo Setup** | ✅ Complete | Done |
-| **1 — SaaS Foundation** | 🔲 Next up | 1-2 weeks |
-| **2 — Dashboard MVP** | 🔲 Queued | 2 weeks |
-| **3 — Billing + Launch** | 🔲 Queued | 1 week |
+| **1 — Supabase + Landing + Auth + Onboarding** | 🔲 Next up | 2 weeks |
+| **2 — Edge Function + CloudIntegration** | 🔲 Queued | 1-2 weeks |
+| **3 — Dashboard + Beta Launch** | 🔲 Queued | 2 weeks |
 | **4 — React Native SDK** | 🔲 Queued | 2-3 weeks |
-| **5 — Growth** | 🔲 Ongoing | — |
+| **5 — Billing + Growth** | 🔲 Ongoing | — |
 
 ---
 
@@ -31,9 +33,9 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ---
 
-## Phase 1 — SaaS Foundation
+## Phase 1 — Supabase + Landing + Auth + Onboarding
 
-> **Goal:** SDK can submit bug reports through our Supabase Edge Function proxy, which forwards to Jira/Linear and logs analytics metadata.
+> **Goal:** Public-facing site + sign-up + onboarding wizard. User goes from landing page to "waiting for first bug report" screen. Supabase schema is deployed because auth and onboarding both need the database.
 
 ### 1.1 Supabase Setup
 
@@ -41,8 +43,54 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 - [ ] Run initial migration: 5 tables (`organizations`, `members`, `projects`, `integrations`, `report_events`)
 - [ ] Configure RLS policies (org-scoped access)
 - [ ] Set up Vault for encrypted credential storage
+- [ ] Configure Auth providers (magic link email, GitHub OAuth, Google OAuth)
 
-### 1.2 Ingest Edge Function
+### 1.2 App Scaffold
+
+- [ ] Create `apps/dashboard/` — Next.js app (landing + dashboard in one)
+- [ ] Add to `pnpm-workspace.yaml`
+- [ ] shadcn/ui + Tailwind CSS setup (colors from Brand Guide: `#0F172A`, `#14B8A6`, `#22D3EE`, `#F8FAFC`)
+- [ ] Light-first design. No gradients. Supabase × Linear × Vercel feel.
+
+### 1.3 Landing Page
+
+- [ ] Hero: "Forward bugs to Jira or Linear. See patterns. Ship faster."
+- [ ] How it works section (4 steps)
+- [ ] No media storage differentiator section
+- [ ] Analytics preview section (realistic examples, not placeholder)
+- [ ] Encrypted credentials / security section
+- [ ] Pricing section: "Free during beta. No credit card required."
+- [ ] CTAs: "Start Free", "View Docs"
+- [ ] All copy aligned with [`Brand_Guid.md`](./Brand_Guid.md)
+
+### 1.4 Auth (Magic Link)
+
+- [ ] Sign up page — email + GitHub OAuth + Google OAuth
+- [ ] Supabase Auth: `signInWithOtp` (magic link) + `signInWithOAuth`
+- [ ] "Check your email" confirmation screen
+- [ ] Auth callback handler (`/auth/callback`)
+- [ ] Route guard: new users → onboarding, returning users → dashboard
+
+### 1.5 Onboarding Wizard (5 steps)
+
+- [ ] **Step 1:** Create organization (name + slug)
+- [ ] **Step 2:** Create project (name + platform select: React / React Native coming soon)
+- [ ] **Step 3:** Connect tracker (Jira or Linear credentials → Vault, "Test Connection" button, skip option)
+- [ ] **Step 4:** Install SDK (pre-filled code snippets with project key, copy-to-clipboard)
+- [ ] **Step 5:** Verify — "Waiting for first bug report" polling screen (wired up in Phase 2)
+- [ ] Success screen: show first report details + link to tracker + "Go to Dashboard"
+- [ ] Onboarding state tracking (`signed_up` → `org_created` → `project_created` → `integration_set` → `sdk_verified`)
+- [ ] Progress indicator (step N of 5)
+
+**Reference:** Full screen wireframes and flow in [`USER_JOURNEY.md`](./USER_JOURNEY.md)
+
+---
+
+## Phase 2 — Edge Function + CloudIntegration
+
+> **Goal:** Complete the backend. SDK can submit bug reports through the Supabase Edge Function proxy. Onboarding verify step works end-to-end.
+
+### 2.1 Ingest Edge Function
 
 - [ ] Create `supabase/functions/ingest/index.ts`
 - [ ] Validate `X-Project-Key` header → look up project + integration
@@ -53,7 +101,7 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 - [ ] Log `report_event` row (metadata only, no media stored)
 - [ ] Return `{ issueId, issueKey, issueUrl }` to SDK
 
-### 1.3 CloudIntegration (SDK)
+### 2.2 CloudIntegration (SDK)
 
 - [ ] Create `packages/core/src/integrations/cloud.ts` — `CloudIntegration` class
 - [ ] Accepts `projectKey`, `ingestUrl`, `appVersion`, `environment`
@@ -61,8 +109,10 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 - [ ] Re-export from `packages/core/src/index.ts` and both SDK barrels
 - [ ] Update `BugReporterIntegrations` type to include `cloud` provider
 
-### 1.4 Verification
+### 2.3 Wire Up Verify + Test Connection
 
+- [ ] Onboarding Step 5 polling → checks `report_events` for first report
+- [ ] "Test Connection" button in onboarding Step 3 → dry-run credential verification
 - [ ] End-to-end test: SDK → Edge Function → Jira issue created → `report_events` row logged
 - [ ] Deploy: `supabase functions deploy ingest`
 
@@ -70,25 +120,24 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ---
 
-## Phase 2 — Dashboard MVP
+## Phase 3 — Dashboard + Beta Launch
 
-> **Goal:** Web dashboard where users manage projects, configure integrations, and view Sentry-style analytics.
+> **Goal:** Analytics dashboard, project management, and public beta launch. Free for all users during beta.
 
-### 2.1 App Scaffold
+### 3.1 Dashboard Layout
 
-- [ ] Create `apps/dashboard/` — Next.js app
-- [ ] Supabase Auth (email + OAuth sign-in)
-- [ ] Protected layout with sidebar navigation
-- [ ] Add to `pnpm-workspace.yaml`
+- [ ] Sidebar navigation (Overview, Reports, Analytics, Integrations, Settings)
+- [ ] Project switcher in header
+- [ ] Empty state for projects with no reports
 
-### 2.2 Project Management
+### 3.2 Project Management
 
 - [ ] Organization + project CRUD
-- [ ] Project key generation (`qbr_proj_xxxxx`)
-- [ ] Integration config forms (Jira credentials, Linear API key → stored in Vault)
+- [ ] Project key display + rotation
+- [ ] Integration config (edit Jira/Linear credentials, test connection)
 - [ ] Project settings (rate limit, active/inactive toggle)
 
-### 2.3 Analytics Dashboard
+### 3.3 Analytics Dashboard
 
 - [ ] **Bug count over time** — line chart (reports per day/week/month)
 - [ ] **Browser breakdown** — bar chart
@@ -98,36 +147,23 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 - [ ] **Device type split** — desktop / mobile / tablet
 - [ ] **Capture mode breakdown** — screenshot vs video ratio
 - [ ] **Recent reports** — table with title, browser, page, timestamp, ↗ Jira/Linear link
-- [ ] **Success rate** — percentage of reports successfully forwarded
+- [ ] **Success rate** — percentage of reports forwarded
 - [ ] Environment filter toggle (production / staging / all)
 
-### 2.4 Deploy
+### 3.4 Deploy + Beta Launch
 
 - [ ] Deploy to Cloudflare Pages
-- [ ] Custom domain setup
+- [ ] Custom domain (`quickbugs.dev`)
+- [ ] Beta banner in dashboard: "QuickBugs is in beta. All features are free."
+- [ ] Announce: dev communities, X/Twitter, relevant subreddits
 
 **Reference:** Dashboard views and SQL queries in [`SAAS_PLAN.md`](./SAAS_PLAN.md)
 
 ---
 
-## Phase 3 — Billing + Launch
-
-> **Goal:** Monetize with tiered plans and go live.
-
-- [ ] Stripe Checkout integration (Pro $29/mo, Team $79/mo)
-- [ ] Plan enforcement in Edge Function (report count limits)
-- [ ] Data retention cleanup via pg_cron (Free: 30d, Pro: 90d, Team: 365d)
-- [ ] Landing page (quickbugreporter.com)
-- [ ] Documentation site or docs section
-- [ ] Launch: Product Hunt, Hacker News, X/Twitter
-
-**Reference:** Pricing tiers and cost breakdown in [`SAAS_PLAN.md`](./SAAS_PLAN.md)
-
----
-
 ## Phase 4 — React Native SDK
 
-> **Goal:** Ship `quick-bug-reporter-react-native` — shake-to-report with screenshot, video, annotation.
+> **Goal:** Ship `quick-bug-reporter-react-native` — shake-to-report with screenshot, video, annotation. CloudIntegration already works (built in Phase 2).
 
 ### 4.1 Core Capture
 
@@ -160,15 +196,25 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ---
 
-## Phase 5 — Growth (ongoing)
+## Phase 5 — Billing + Growth (post-beta)
+
+### Billing (when beta ends)
+
+- [ ] Stripe Checkout integration (Pro $29/mo, Team $79/mo)
+- [ ] Plan enforcement in Edge Function (report count limits)
+- [ ] Data retention cleanup via pg_cron (Free: 30d, Pro: 90d, Team: 365d)
+- [ ] Pricing page update: "No seat pricing. No bandwidth surprises."
+
+### Growth (ongoing)
 
 - [ ] Team invites + role-based access
 - [ ] Advanced analytics (trend comparisons, regression detection)
 - [ ] Webhook/Slack notifications on new reports
-- [ ] Custom ingestion domain (`ingest.quickbugreporter.com`)
+- [ ] Custom ingestion domain (`ingest.quickbugs.dev`)
 - [ ] Cloudflare Workers migration if Edge Function limits hit
 - [ ] GitHub Actions: CI + automated npm publish workflows
 - [ ] Self-hosted / on-premise option for enterprise
+- [ ] Product Hunt + Hacker News launch (post-beta)
 
 ---
 
@@ -186,4 +232,4 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ---
 
-*Last updated: Feb 13, 2025*
+*Last updated: Feb 13, 2026*
