@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { IconFolder, IconCopy, IconCheck } from "@tabler/icons-react";
+import Link from "next/link";
+import { IconFolder, IconCopy, IconCheck, IconChevronRight } from "@tabler/icons-react";
 
 export function ProjectCard({
   project,
@@ -23,7 +24,10 @@ export function ProjectCard({
   }
 
   return (
-    <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4">
+    <Link
+      href={`/dashboard/${project.id}`}
+      className="flex items-center justify-between rounded-xl border border-slate-200 bg-white px-5 py-4 transition-colors hover:border-slate-300 hover:bg-slate-50/50"
+    >
       <div className="flex items-center gap-3">
         <div className="flex size-10 items-center justify-center rounded-lg bg-primary/10 text-primary">
           <IconFolder className="size-5" />
@@ -60,7 +64,8 @@ export function ProjectCard({
             project.is_active ? "bg-emerald-400" : "bg-slate-300"
           }`}
         />
+        <IconChevronRight className="size-4 text-slate-300" />
       </div>
-    </div>
+    </Link>
   );
 }

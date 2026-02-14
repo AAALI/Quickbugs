@@ -44,37 +44,77 @@ export class CloudIntegration implements BugReporterIntegration {
     const browserName = parseBrowserName(ua);
     const osName = parseOsName(ua);
 
-    // Build the report body
-    const body: Record<string, unknown> = {
-      project_key: this.projectKey,
-      title: payload.title,
-      provider: "cloud",
-      capture_mode: payload.captureMode,
-      has_screenshot: Boolean(payload.screenshotBlob),
-      has_video: Boolean(payload.videoBlob),
-      has_network_logs: payload.networkLogs.length > 0,
-      has_console_logs: payload.consoleLogs.length > 0,
-      js_error_count: payload.jsErrors.length,
-      user_agent: ua,
-      browser_name: browserName,
-      os_name: osName,
-      device_type: getDeviceType(),
-      screen_resolution: getScreenResolution(),
-      viewport: getViewport(),
-      color_scheme: payload.metadata.colorScheme !== "unknown" ? payload.metadata.colorScheme : null,
-      locale: payload.metadata.locale,
-      timezone: payload.metadata.timezone,
-      connection_type: payload.metadata.connection?.effectiveType ?? null,
-      page_url: payload.pageUrl,
-      environment: getEnvironment(),
-    };
+    // Build FormData so we can include binary attachments
+    const fd = new FormData();
+    fd.set("project_key", this.projectKey);
+    fd.set("title", payload.title);
+    fd.set("description", payload.description || "");
+    fd.set("provider", "cloud");
+    fd.set("capture_mode", payload.captureMode);
+    fd.set("has_screenshot", String(Boolean(payload.screenshotBlob)));
+    fd.set("has_video", String(Boolean(payload.videoBlob)));
+    fd.set("has_network_logs", String(payload.networkLogs.length > 0));
+    fd.set("has_console_logs", String(payload.consoleLogs.length > 0));
+    fd.set("js_error_count", String(payload.jsErrors.length));
+    fd.set("user_agent", ua);
+    fd.set("browser_name", browserName);
+    fd.set("os_name", osName);
+    fd.set("device_type", getDeviceType());
+    fd.set("screen_resolution", getScreenResolution());
+    fd.set("viewport", getViewport());
+    fd.set("color_scheme", payload.metadata.colorScheme !== "unknown" ? payload.metadata.colorScheme : "");
+    fd.set("locale", payload.metadata.locale ?? "");
+    fd.set("timezone", payload.metadata.timezone ?? "");
+    fd.set("connection_type", payload.metadata.connection?.effectiveType ?? "");
+    fd.set("page_url", payload.pageUrl || "");
+    fd.set("environment", getEnvironment());
+    fd.set("stopped_at", payload.stoppedAt || "");
+
+    // Attach screenshot / video blobs
+    if (payload.screenshotBlob) {
+      fd.append("screenshot", payload.screenshotBlob, "bug-screenshot.png");
+    }
+    if (payload.videoBlob) {
+      fd.append("video", payload.videoBlob, "bug-recording.webm");
+    }
+
+    // Attach network logs
+    if (payload.networkLogs.length > 0) {
+      fd.append(
+        "network_logs",
+        new Blob([formatNetworkLogs(payload.networkLogs)], { type: "text/plain" }),
+        "network-logs.txt",
+      );
+    }
+
+    // Attach console logs + JS errors
+    if (payload.consoleLogs.length > 0 || payload.jsErrors.length > 0) {
+      const parts: string[] = [];
+      if (payload.jsErrors.length > 0) {
+        parts.push("=== JavaScript Errors ===\n" + formatJsErrors(payload.jsErrors));
+      }
+      if (payload.consoleLogs.length > 0) {
+        parts.push("=== Console Output ===\n" + formatConsoleLogs(payload.consoleLogs));
+      }
+      fd.append(
+        "console_logs",
+        new Blob([parts.join("\n\n")], { type: "text/plain" }),
+        "console-logs.txt",
+      );
+    }
+
+    // Attach client metadata
+    fd.append(
+      "metadata",
+      new Blob([JSON.stringify(payload.metadata, null, 2)], { type: "application/json" }),
+      "client-metadata.json",
+    );
 
     onProgress("Sending report…");
 
     const response = await this.fetchFn(this.endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: fd,
     });
 
     if (!response.ok) {
@@ -83,16 +123,25 @@ export class CloudIntegration implements BugReporterIntegration {
       throw new Error(`CloudIntegration: ${message}`);
     }
 
-    const result = (await response.json()) as { id: string; created_at: string };
+    const result = (await response.json()) as {
+      id: string;
+      created_at: string;
+      forwarding?: { provider?: string; key?: string; url?: string; error?: string } | null;
+    };
 
     onProgress("Report submitted.");
+
+    // Use the real external issue key/URL from tracker forwarding when available
+    const fwd = result.forwarding;
+    const externalKey = fwd?.key;
+    const externalUrl = fwd?.url;
 
     return {
       provider: "cloud" as BugSubmitResult["provider"],
       issueId: result.id,
-      issueKey: `QB-${result.id.slice(0, 8)}`,
-      issueUrl: null,
-      warnings: [],
+      issueKey: externalKey || `QB-${result.id.slice(0, 8)}`,
+      issueUrl: externalUrl || null,
+      warnings: fwd?.error ? [`Forwarding: ${fwd.error}`] : [],
     };
   }
 }

@@ -14,6 +14,10 @@ export default defineConfig({
       allow: [path.resolve(__dirname, '..')],
     },
     proxy: {
+      '/api/ingest': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
       '/api/linear': {
         target: 'https://api.linear.app',
         changeOrigin: true,
@@ -27,6 +31,6 @@ export default defineConfig({
     },
   },
   optimizeDeps: {
-    include: ['bug-reporter-react'],
+    include: ['quick-bug-reporter-react'],
   },
 })

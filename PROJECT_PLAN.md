@@ -11,9 +11,9 @@
 | Phase | Status | ETA |
 |-------|:------:|:---:|
 | **0 — Monorepo Setup** | ✅ Complete | Done |
-| **1 — Supabase + Landing + Auth + Onboarding** | 🔲 Next up | 2 weeks |
-| **2 — Edge Function + CloudIntegration** | 🔲 Queued | 1-2 weeks |
-| **3 — Dashboard + Beta Launch** | 🔲 Queued | 2 weeks |
+| **1 — Supabase + Landing + Auth + Onboarding** | ✅ Complete | Done |
+| **2 — Edge Function + CloudIntegration** | ✅ Complete | Done |
+| **3 — Dashboard + Beta Launch** | � In Progress | 1-2 weeks |
 | **4 — React Native SDK** | 🔲 Queued | 2-3 weeks |
 | **5 — Billing + Growth** | 🔲 Ongoing | — |
 
@@ -33,88 +33,85 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ---
 
-## Phase 1 — Supabase + Landing + Auth + Onboarding
+## Phase 1 — Supabase + Landing + Auth + Onboarding ✅
 
 > **Goal:** Public-facing site + sign-up + onboarding wizard. User goes from landing page to "waiting for first bug report" screen. Supabase schema is deployed because auth and onboarding both need the database.
 
 ### 1.1 Supabase Setup
 
-- [ ] Create Supabase project
-- [ ] Run initial migration: 5 tables (`organizations`, `members`, `projects`, `integrations`, `report_events`)
-- [ ] Configure RLS policies (org-scoped access)
-- [ ] Set up Vault for encrypted credential storage
-- [ ] Configure Auth providers (magic link email, GitHub OAuth, Google OAuth)
+- [x] Create Supabase project
+- [x] Run initial migration: 5 tables (`organizations`, `members`, `projects`, `integrations`, `report_events`)
+- [x] Configure RLS policies (org-scoped access)
+- [x] Set up Vault for encrypted credential storage (Vault helper functions migration)
+- [x] Configure Auth providers (magic link email)
 
 ### 1.2 App Scaffold
 
-- [ ] Create `apps/dashboard/` — Next.js app (landing + dashboard in one)
-- [ ] Add to `pnpm-workspace.yaml`
-- [ ] shadcn/ui + Tailwind CSS setup (colors from Brand Guide: `#0F172A`, `#14B8A6`, `#22D3EE`, `#F8FAFC`)
-- [ ] Light-first design. No gradients. Supabase × Linear × Vercel feel.
+- [x] Create `apps/dashboard/` — Next.js 16 app (landing + dashboard in one)
+- [x] Add to `pnpm-workspace.yaml`
+- [x] shadcn/ui + Tailwind CSS setup (brand colors)
+- [x] Light-first design. Supabase × Linear × Vercel feel.
 
 ### 1.3 Landing Page
 
-- [ ] Hero: "Forward bugs to Jira or Linear. See patterns. Ship faster."
-- [ ] How it works section (4 steps)
-- [ ] No media storage differentiator section
-- [ ] Analytics preview section (realistic examples, not placeholder)
-- [ ] Encrypted credentials / security section
-- [ ] Pricing section: "Free during beta. No credit card required."
-- [ ] CTAs: "Start Free", "View Docs"
-- [ ] All copy aligned with [`Brand_Guid.md`](./Brand_Guid.md)
+- [x] Hero section
+- [x] How it works section
+- [x] No media storage differentiator section
+- [x] Analytics preview section
+- [x] Encrypted credentials / security section
+- [x] Pricing section (free during beta)
+- [x] CTAs: "Start Free", "View Docs"
+- [x] All copy aligned with [`Brand_Guid.md`](./Brand_Guid.md)
 
 ### 1.4 Auth (Magic Link)
 
-- [ ] Sign up page — email + GitHub OAuth + Google OAuth
-- [ ] Supabase Auth: `signInWithOtp` (magic link) + `signInWithOAuth`
-- [ ] "Check your email" confirmation screen
-- [ ] Auth callback handler (`/auth/callback`)
-- [ ] Route guard: new users → onboarding, returning users → dashboard
+- [x] Combined login/signup page — email magic link
+- [x] Supabase Auth: `signInWithOtp` (magic link)
+- [x] "Check your email" confirmation screen
+- [x] Auth callback handler (`/auth/callback`)
+- [x] Middleware route guard: unauthenticated → `/login`, authenticated → `/dashboard`
 
 ### 1.5 Onboarding Wizard (5 steps)
 
-- [ ] **Step 1:** Create organization (name + slug)
-- [ ] **Step 2:** Create project (name + platform select: React / React Native coming soon)
-- [ ] **Step 3:** Connect tracker (Jira or Linear credentials → Vault, "Test Connection" button, skip option)
-- [ ] **Step 4:** Install SDK (pre-filled code snippets with project key, copy-to-clipboard)
-- [ ] **Step 5:** Verify — "Waiting for first bug report" polling screen (wired up in Phase 2)
-- [ ] Success screen: show first report details + link to tracker + "Go to Dashboard"
-- [ ] Onboarding state tracking (`signed_up` → `org_created` → `project_created` → `integration_set` → `sdk_verified`)
-- [ ] Progress indicator (step N of 5)
+- [x] **Step 1:** Create organization (name, auto-slug)
+- [x] **Step 2:** Create project (name + platform select)
+- [x] **Step 3:** Connect tracker (Jira or Linear credentials → Vault, skip option)
+- [x] **Step 4:** Install SDK (pre-filled code snippets with project key, copy-to-clipboard)
+- [x] **Step 5:** Verify — "Waiting for first bug report" polling screen
+- [x] Progress indicator (step N of 5)
 
 **Reference:** Full screen wireframes and flow in [`USER_JOURNEY.md`](./USER_JOURNEY.md)
 
 ---
 
-## Phase 2 — Edge Function + CloudIntegration
+## Phase 2 — Edge Function + CloudIntegration ✅
 
 > **Goal:** Complete the backend. SDK can submit bug reports through the Supabase Edge Function proxy. Onboarding verify step works end-to-end.
 
 ### 2.1 Ingest Edge Function
 
-- [ ] Create `supabase/functions/ingest/index.ts`
-- [ ] Validate `X-Project-Key` header → look up project + integration
-- [ ] Rate limiting via `report_events` count
-- [ ] Decrypt credentials from Vault
-- [ ] Forward bug report to Jira/Linear API (create issue + upload attachments)
-- [ ] Parse `User-Agent` for browser/OS fields
-- [ ] Log `report_event` row (metadata only, no media stored)
-- [ ] Return `{ issueId, issueKey, issueUrl }` to SDK
+- [x] Create `supabase/functions/ingest/index.ts`
+- [x] Validate `X-Project-Key` header → look up project + integration
+- [x] Rate limiting via `report_events` count
+- [x] Decrypt credentials from Vault
+- [x] Forward bug report to Jira/Linear API (create issue + upload attachments)
+- [x] Parse `User-Agent` for browser/OS fields
+- [x] Log `report_event` row (metadata only, no media stored)
+- [x] Return `{ issueId, issueKey, issueUrl }` to SDK
+- [x] Next.js API route mirror (`/api/ingest`) with same logic + tracker forwarding
 
 ### 2.2 CloudIntegration (SDK)
 
-- [ ] Create `packages/core/src/integrations/cloud.ts` — `CloudIntegration` class
-- [ ] Accepts `projectKey`, `ingestUrl`, `appVersion`, `environment`
-- [ ] Sends multipart POST to Edge Function with all report data
-- [ ] Re-export from `packages/core/src/index.ts` and both SDK barrels
-- [ ] Update `BugReporterIntegrations` type to include `cloud` provider
+- [x] Create `packages/core/src/integrations/cloud.ts` — `CloudIntegration` class
+- [x] Accepts `projectKey`, `ingestUrl`, `appVersion`, `environment`
+- [x] Sends multipart POST to ingest endpoint with all report data
+- [x] Re-export from `packages/core/src/index.ts` and both SDK barrels
+- [x] Update `BugReporterIntegrations` type to include `cloud` provider
 
 ### 2.3 Wire Up Verify + Test Connection
 
-- [ ] Onboarding Step 5 polling → checks `report_events` for first report
-- [ ] "Test Connection" button in onboarding Step 3 → dry-run credential verification
-- [ ] End-to-end test: SDK → Edge Function → Jira issue created → `report_events` row logged
-- [ ] Deploy: `supabase functions deploy ingest`
+- [x] Onboarding Step 5 polling → checks `report_events` for first report
+- [x] End-to-end flow: SDK → Ingest → Jira/Linear issue created → `report_events` row logged
 
 **Reference:** Full architecture, data model, and security details in [`SAAS_PLAN.md`](./SAAS_PLAN.md)
 
@@ -126,16 +123,24 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ### 3.1 Dashboard Layout
 
-- [ ] Sidebar navigation (Overview, Reports, Analytics, Integrations, Settings)
-- [ ] Project switcher in header
-- [ ] Empty state for projects with no reports
+- [x] Shared app header (org name, plan badge, settings icon, avatar dropdown)
+- [x] Avatar dropdown with user info + logout
+- [x] Dashboard overview (stats cards, project list, recent reports table)
+- [x] Empty state for projects with no reports
+- [x] Loading skeletons (dashboard + settings)
+- [ ] Project detail page — all reports for a project with filters/search
+- [ ] Report detail page — full report metadata, external issue link
 
 ### 3.2 Project Management
 
-- [ ] Organization + project CRUD
-- [ ] Project key display + rotation
-- [ ] Integration config (edit Jira/Linear credentials, test connection)
-- [ ] Project settings (rate limit, active/inactive toggle)
+- [x] Organization + project settings (name, slug, plan display)
+- [x] Project key display + copy-to-clipboard
+- [x] Integration config (connect, rotate API keys via Vault, remove)
+- [x] Project settings (rate limit, active/inactive toggle)
+- [x] Danger zone (leave org / delete org with confirmation)
+- [x] Settings page with sidebar tabs (Profile, Organization, Projects, Integrations, Danger Zone)
+- [x] Performance: `getSession()` in pages (middleware handles `getUser()`), fixed query parallelism
+- [ ] Team member management (invite, roles, remove)
 
 ### 3.3 Analytics Dashboard
 
@@ -146,13 +151,13 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 - [ ] **Top pages** — table ranked by report count
 - [ ] **Device type split** — desktop / mobile / tablet
 - [ ] **Capture mode breakdown** — screenshot vs video ratio
-- [ ] **Recent reports** — table with title, browser, page, timestamp, ↗ Jira/Linear link
 - [ ] **Success rate** — percentage of reports forwarded
 - [ ] Environment filter toggle (production / staging / all)
+- [ ] Date range picker
 
 ### 3.4 Deploy + Beta Launch
 
-- [ ] Deploy to Cloudflare Pages
+- [ ] Deploy to Cloudflare Pages (or Vercel)
 - [ ] Custom domain (`quickbugs.dev`)
 - [ ] Beta banner in dashboard: "QuickBugs is in beta. All features are free."
 - [ ] Announce: dev communities, X/Twitter, relevant subreddits
@@ -232,4 +237,4 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ---
 
-*Last updated: Feb 13, 2026*
+*Last updated: Feb 14, 2026*

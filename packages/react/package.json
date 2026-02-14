@@ -1,6 +1,6 @@
 {
   "name": "quick-bug-reporter-react",
-  "version": "1.2.0",
+  "version": "1.3.2",
   "description": "Drop-in bug reporter for React apps — screenshot, video capture, annotation, and Linear/Jira integration.",
   "author": "Ali Abdulkadir Ali",
   "homepage": "https://github.com/AAALI/bug-reporter-react#readme",
@@ -47,6 +47,7 @@
     "screen-recording",
     "linear",
     "jira",
+    "cloud",
     "html2canvas"
   ],
   "license": "MIT",

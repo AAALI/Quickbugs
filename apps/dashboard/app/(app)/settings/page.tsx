@@ -10,13 +10,11 @@ import { DangerSection } from "./sections/danger-section";
 
 export default async function SettingsPage() {
   const supabase = await createClient();
-  // Middleware already validated auth — read session from cookie (0ms)
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  if (!session) redirect("/login");
-  const user = session.user;
+  if (!user) redirect("/login");
 
   const { data: membership } = await supabase
     .from("members")

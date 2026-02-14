@@ -148,7 +148,7 @@ function IntegrationCard({
       "create_secret",
       {
         secret_value: newToken.trim(),
-        secret_name: `${integration.provider}-${integration.project_id}-rotated`,
+        secret_name: `${integration.provider}-${integration.project_id}-${Date.now()}`,
       }
     );
 
@@ -180,6 +180,13 @@ function IntegrationCard({
     if (!confirm(`Remove ${meta.label} integration? This cannot be undone.`)) return;
     setRemoving(true);
 
+    // Get vault_secret_id before deleting the integration
+    const { data: intRow } = await supabase
+      .from("integrations")
+      .select("vault_secret_id")
+      .eq("id", integration.id)
+      .single();
+
     const { error: deleteError } = await supabase
       .from("integrations")
       .delete()
@@ -189,6 +196,10 @@ function IntegrationCard({
       setError(deleteError.message);
       setRemoving(false);
     } else {
+      // Clean up vault secret
+      if (intRow?.vault_secret_id) {
+        try { await supabase.rpc("delete_secret", { secret_id: intRow.vault_secret_id }); } catch { /* ignore */ }
+      }
       onRemoved(integration.id);
     }
   }
@@ -291,6 +302,7 @@ function AddIntegrationForm({
   const [apiToken, setApiToken] = useState("");
   const [teamId, setTeamId] = useState("");
   const [email, setEmail] = useState("");
+  const [jiraProjectKey, setJiraProjectKey] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -305,12 +317,38 @@ function AddIntegrationForm({
     setSaving(true);
     setError(null);
 
-    // Store in Vault
+    // Step 1: Validate credentials BEFORE saving
+    try {
+      const validateRes = await fetch("/api/validate-integration", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          provider,
+          apiToken: apiToken.trim(),
+          email: email.trim() || undefined,
+          siteUrl: teamId.trim() || undefined,
+          projectKey: jiraProjectKey.trim() || undefined,
+          teamId: teamId.trim() || undefined,
+        }),
+      });
+      const validateBody = await validateRes.json();
+      if (!validateBody.valid) {
+        setError(validateBody.error || "Credential validation failed.");
+        setSaving(false);
+        return;
+      }
+    } catch {
+      setError("Could not validate credentials. Is the server running?");
+      setSaving(false);
+      return;
+    }
+
+    // Step 2: Store in Vault (credentials are verified)
     const { data: vaultId, error: vaultError } = await supabase.rpc(
       "create_secret",
       {
         secret_value: apiToken.trim(),
-        secret_name: `${provider}-${projectId}`,
+        secret_name: `${provider}-${projectId}-${Date.now()}`,
       }
     );
 
@@ -323,6 +361,7 @@ function AddIntegrationForm({
     const config: Record<string, string> = {};
     if (teamId.trim()) config.team_id = teamId.trim();
     if (email.trim()) config.email = email.trim();
+    if (jiraProjectKey.trim()) config.project_key = jiraProjectKey.trim();
 
     const { data, error: insertError } = await supabase
       .from("integrations")
@@ -344,6 +383,7 @@ function AddIntegrationForm({
       setApiToken("");
       setTeamId("");
       setEmail("");
+      setJiraProjectKey("");
       router.refresh();
     }
     setSaving(false);
@@ -415,17 +455,33 @@ function AddIntegrationForm({
           </div>
 
           {provider === "jira" && (
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-slate-700">
-                Jira email <span className="text-slate-400">(optional)</span>
-              </Label>
-              <Input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="you@company.com"
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-700">
+                  Jira email
+                </Label>
+                <Input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-slate-700">
+                  Jira project key
+                </Label>
+                <Input
+                  type="text"
+                  value={jiraProjectKey}
+                  onChange={(e) => setJiraProjectKey(e.target.value)}
+                  placeholder="e.g. KAN, HAY, PROJ"
+                />
+                <p className="text-xs text-slate-400">
+                  The prefix shown on your Jira issues (e.g. KAN-35).
+                </p>
+              </div>
+            </>
           )}
 
           {error && <p className="text-sm text-red-600">{error}</p>}
@@ -447,6 +503,7 @@ function AddIntegrationForm({
                 setApiToken("");
                 setTeamId("");
                 setEmail("");
+                setJiraProjectKey("");
                 setError(null);
               }}
             >

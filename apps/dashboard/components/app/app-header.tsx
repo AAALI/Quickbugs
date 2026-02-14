@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { IconBug, IconSettings } from "@tabler/icons-react";
+import { IconBug, IconSettings, IconBook } from "@tabler/icons-react";
 import { UserNav } from "./user-nav";
 
 type AppHeaderProps = {
@@ -28,6 +28,13 @@ export function AppHeader({ orgName, plan, email, userName }: AppHeaderProps) {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/docs"
+            className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            title="Docs"
+          >
+            <IconBook className="size-[18px]" />
+          </Link>
           <Link
             href="/settings"
             className="flex size-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"

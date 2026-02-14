@@ -39,7 +39,7 @@ export function StepConnectTracker({
       "create_secret",
       {
         secret_value: apiToken.trim(),
-        secret_name: `${provider}-${projectId}`,
+        secret_name: `${provider}-${projectId}-${Date.now()}`,
       },
     );
 

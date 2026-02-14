@@ -76,7 +76,10 @@ type BugReporterContextValue = {
 const BugReporterContext = createContext<BugReporterContextValue | null>(null);
 
 function getProviderLabel(provider: BugTrackerProvider): string {
-  return provider === "linear" ? "Linear" : "Jira";
+  if (provider === "linear") return "Linear";
+  if (provider === "jira") return "Jira";
+  if (provider === "cloud") return "QuickBugs Cloud";
+  return provider;
 }
 
 export function BugReporterProvider({
@@ -95,7 +98,7 @@ export function BugReporterProvider({
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [autoStopNotice, setAutoStopNotice] = useState<string | null>(null);
-  const [selectedProvider, setSelectedProvider] = useState<BugTrackerProvider | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<BugTrackerProvider | null>(defaultProvider ?? null);
 
   const [draftMode, setDraftMode] = useState<ReportCaptureMode | null>(null);
   const [videoBlob, setVideoBlob] = useState<Blob | null>(null);

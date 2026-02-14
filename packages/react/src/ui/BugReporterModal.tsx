@@ -30,7 +30,10 @@ function formatElapsed(ms: number): string {
 }
 
 function providerLabel(provider: BugTrackerProvider): string {
-  return provider === "linear" ? "Linear" : "Jira";
+  if (provider === "linear") return "Linear";
+  if (provider === "jira") return "Jira";
+  if (provider === "cloud") return "QuickBugs Cloud";
+  return provider;
 }
 
 type WizardStep = "review" | "context";

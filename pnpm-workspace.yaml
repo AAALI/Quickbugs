@@ -1,6 +1,8 @@
 packages:
   - packages/*
   - apps/*
+  - test-app-tw3
+  - test-app-tw4
 
 ignoredBuiltDependencies:
   - '@parcel/watcher'
