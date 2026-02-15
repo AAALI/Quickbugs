@@ -644,21 +644,21 @@ async function forwardToLinear(
 
   // 4) Add network logs, console logs, and metadata as separate comments
   if (attachments.networkLogs) {
-    const text = attachments.networkLogs.buffer.toString("utf-8");
+    const text = new TextDecoder().decode(attachments.networkLogs.buffer);
     if (text.trim()) {
       await linearAddComment(apiKey, issue.id, "### Network Logs\n```\n" + text.slice(0, 10000) + "\n```");
     }
   }
 
   if (attachments.consoleLogs) {
-    const text = attachments.consoleLogs.buffer.toString("utf-8");
+    const text = new TextDecoder().decode(attachments.consoleLogs.buffer);
     if (text.trim()) {
       await linearAddComment(apiKey, issue.id, "### Console Logs\n```\n" + text.slice(0, 10000) + "\n```");
     }
   }
 
   if (attachments.metadata) {
-    const text = attachments.metadata.buffer.toString("utf-8");
+    const text = new TextDecoder().decode(attachments.metadata.buffer);
     if (text.trim()) {
       await linearAddComment(apiKey, issue.id, "### Client Metadata\n```json\n" + text + "\n```");
     }
@@ -669,7 +669,7 @@ async function forwardToLinear(
 
 async function linearUploadBuffer(
   apiKey: string,
-  buf: Buffer,
+  buf: Uint8Array,
   filename: string,
   contentType: string
 ): Promise<string | null> {
@@ -811,7 +811,7 @@ async function forwardToJira(
   console.log("[ingest] Jira issue created:", issueKey);
 
   // 2) Upload attachments to the created issue
-  const filesToUpload: { buf: Buffer; filename: string; contentType: string }[] = [];
+  const filesToUpload: { buf: Uint8Array; filename: string; contentType: string }[] = [];
 
   if (attachments.screenshot) {
     filesToUpload.push({
