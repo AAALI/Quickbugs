@@ -201,7 +201,18 @@ export async function POST(request: Request) {
       .single();
 
     if (projectError || !project) {
-      return NextResponse.json({ error: "Invalid project key." }, { status: 401, headers: corsHeaders });
+      console.error("[ingest] Project validation failed");
+      console.error("[ingest] projectKey:", projectKey);
+      console.error("[ingest] projectError:", projectError?.message);
+      console.error("[ingest] project found:", !!project);
+      return NextResponse.json({ 
+        error: "Invalid project key.",
+        debug: {
+          projectKey,
+          errorMessage: projectError?.message,
+          projectFound: !!project
+        }
+      }, { status: 401, headers: corsHeaders });
     }
 
     if (!project.is_active) {
@@ -286,8 +297,19 @@ export async function POST(request: Request) {
       .single();
 
     if (insertError) {
-      console.error("[ingest] DB insert failed:", insertError.message);
-      return NextResponse.json({ error: "Failed to store report." }, { status: 500, headers: corsHeaders });
+      console.error("[ingest] ═══ DB INSERT FAILED ═══");
+      console.error("[ingest] Error code:", insertError.code);
+      console.error("[ingest] Error message:", insertError.message);
+      console.error("[ingest] Error details:", insertError.details);
+      console.error("[ingest] Error hint:", insertError.hint);
+      return NextResponse.json({ 
+        error: "Failed to store report.",
+        debug: {
+          code: insertError.code,
+          message: insertError.message,
+          hint: insertError.hint
+        }
+      }, { status: 500, headers: corsHeaders });
     }
 
     console.log("[ingest] Report stored — id:", event.id, "description in DB:", description ? "YES" : "EMPTY");
