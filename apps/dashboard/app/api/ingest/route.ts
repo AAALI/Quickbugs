@@ -1,17 +1,23 @@
 import { after, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Service-role client bypasses RLS for ingestion
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
 };
+
+// Helper to get Supabase client (must be called inside request handler for Cloudflare Workers)
+function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  
+  if (!url || !key) {
+    throw new Error("Missing Supabase credentials. Check NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars.");
+  }
+  
+  return createClient(url, key);
+}
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -42,6 +48,7 @@ async function blobToBuffer(
 }
 
 async function uploadToStorage(
+  supabase: ReturnType<typeof getSupabaseClient>,
   basePath: string,
   attachments: Attachments
 ): Promise<Record<string, string>> {
@@ -92,6 +99,9 @@ async function uploadToStorage(
 
 export async function POST(request: Request) {
   try {
+    // Initialize Supabase client (must be done inside request handler for Cloudflare Workers)
+    const supabase = getSupabaseClient();
+    
     const contentType = request.headers.get("content-type") ?? "";
 
     if (!contentType.includes("multipart/form-data")) {
@@ -281,7 +291,7 @@ export async function POST(request: Request) {
 
     // ─── 5. Upload attachments to Supabase Storage ────────────
     const basePath = `${project.id}/${event.id}`;
-    const storagePaths = await uploadToStorage(basePath, attachments);
+    const storagePaths = await uploadToStorage(supabase, basePath, attachments);
 
     // ─── 6. Update report with storage paths ──────────────────
     if (Object.keys(storagePaths).length > 0) {
@@ -333,7 +343,7 @@ export async function POST(request: Request) {
     if (syncForwarding) {
       let forwardResult: ForwardResult = null;
       try {
-        forwardResult = await forwardToTracker(project.id, event, reportData, attachments);
+        forwardResult = await forwardToTracker(supabase, project.id, event, reportData, attachments);
       } catch (err) {
         console.error("[ingest] forwardToTracker error:", err);
         forwardResult = { error: String(err) };
@@ -354,7 +364,7 @@ export async function POST(request: Request) {
 
     after(async () => {
       try {
-        const forwardResult = await forwardToTracker(project.id, event, reportData, attachments);
+        const forwardResult = await forwardToTracker(supabase, project.id, event, reportData, attachments);
         console.log("[ingest] ════ Async forward done ═══", JSON.stringify(forwardResult));
       } catch (err) {
         console.error("[ingest] async forwardToTracker error:", err);
@@ -386,6 +396,7 @@ export async function POST(request: Request) {
 type ForwardResult = { provider?: string; key?: string; url?: string; error?: string } | null;
 
 async function forwardToTracker(
+  supabase: ReturnType<typeof getSupabaseClient>,
   projectId: string,
   event: { id: string; created_at: string },
   reportData: Record<string, unknown>,
