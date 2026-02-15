@@ -12,11 +12,42 @@ export function StepInstallSdk({
   onComplete: () => void;
 }) {
   const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedSnippet, setCopiedSnippet] = useState(false);
+
+  const snippet = `import {
+  BugReporterProvider,
+  BugReporterModal,
+  FloatingBugButton,
+  CloudIntegration,
+} from "quick-bug-reporter-react";
+
+const cloud = new CloudIntegration({
+  projectKey: "${projectKey}",
+  endpoint: "/api/ingest",
+  appVersion: "1.0.0",
+  environment: "production",
+});
+
+export function AppWithBugReporter({ children }: { children: React.ReactNode }) {
+  return (
+    <BugReporterProvider integrations={{ cloud }} defaultProvider="cloud">
+      {children}
+      <FloatingBugButton />
+      <BugReporterModal />
+    </BugReporterProvider>
+  );
+}`;
 
   async function copyProjectKey() {
     await navigator.clipboard.writeText(projectKey);
     setCopiedKey(true);
     setTimeout(() => setCopiedKey(false), 2000);
+  }
+
+  async function copySnippet() {
+    await navigator.clipboard.writeText(snippet);
+    setCopiedSnippet(true);
+    setTimeout(() => setCopiedSnippet(false), 2000);
   }
 
   return (
@@ -28,8 +59,8 @@ export function StepInstallSdk({
         Your project is ready
       </h2>
       <p className="mt-2 text-sm text-slate-500">
-        The React SDK is not published yet. Save your project key —
-        you will need it when the SDK is available.
+        Install the SDK and connect it to your project key. Reports will flow
+        through `/api/ingest` and forward to your configured tracker.
       </p>
 
       <div className="mt-8 space-y-5">
@@ -57,14 +88,37 @@ export function StepInstallSdk({
           </p>
         </div>
 
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
-          <p className="text-sm font-medium text-amber-900">
-            SDK coming soon
-          </p>
-          <p className="mt-1 text-sm text-amber-700">
-            The @quickbugs/react package is under development.
-            We will notify you when it is ready to install.
-          </p>
+        <div className="rounded-xl border border-slate-200 bg-white p-5">
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Install
+            </p>
+            <code className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-700">
+              npm i quick-bug-reporter-react
+            </code>
+          </div>
+          <div className="mt-4">
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Quick start snippet
+              </p>
+              <button
+                type="button"
+                onClick={copySnippet}
+                className="flex items-center gap-1 text-xs text-slate-400 transition-colors hover:text-slate-600"
+              >
+                {copiedSnippet ? (
+                  <IconCheck className="size-3" />
+                ) : (
+                  <IconCopy className="size-3" />
+                )}
+                {copiedSnippet ? "Copied" : "Copy"}
+              </button>
+            </div>
+            <pre className="max-h-72 overflow-auto rounded-lg bg-slate-950 p-3 text-xs text-slate-200">
+              <code>{snippet}</code>
+            </pre>
+          </div>
         </div>
       </div>
 

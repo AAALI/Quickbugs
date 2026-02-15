@@ -206,9 +206,24 @@ export default async function ReportDetailPage({ params }: Props) {
               }
             />
             <Field label="Device type" value={report.device_type ?? "—"} />
+            <Field label="Platform" value={report.platform ?? "—"} />
+            <Field
+              label="Device model"
+              value={
+                report.device_model
+                  ? `${report.device_brand ? `${report.device_brand} ` : ""}${report.device_model}`
+                  : "—"
+              }
+            />
             <Field label="Screen resolution" value={report.screen_resolution ?? "—"} />
             <Field label="Viewport" value={report.viewport ?? "—"} />
             <Field label="Color scheme" value={report.color_scheme ?? "—"} />
+            <Field
+              label="Emulator"
+              value={
+                report.is_emulator == null ? "—" : report.is_emulator ? "Yes" : "No"
+              }
+            />
           </Section>
 
           {/* Location & network */}
@@ -227,7 +242,25 @@ export default async function ReportDetailPage({ params }: Props) {
           {/* App context */}
           <Section title="App Context">
             <Field label="App version" value={report.app_version ?? "—"} />
+            <Field label="Build number" value={report.app_build_number ?? "—"} />
             <Field label="Environment" value={report.environment ?? "—"} />
+            <Field label="Invocation" value={report.invocation_method ?? "—"} />
+            <Field
+              label="Battery level"
+              value={
+                typeof report.battery_level === "number"
+                  ? `${Math.round(report.battery_level * 100)}%`
+                  : "—"
+              }
+            />
+            <Field
+              label="Free storage"
+              value={
+                typeof report.free_storage_mb === "number"
+                  ? `${report.free_storage_mb} MB`
+                  : "—"
+              }
+            />
             <Field
               icon={<IconClock className="size-3.5 text-slate-400" />}
               label="Created"

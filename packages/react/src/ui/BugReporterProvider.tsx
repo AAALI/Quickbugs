@@ -584,7 +584,11 @@ export function BugReporterProvider({
           onProgress: setSubmissionProgress,
         });
 
-        setSuccess(`Submitted to ${getProviderLabel(result.provider)} (${result.issueKey}).`);
+        if (result.provider === "cloud" && !result.issueUrl) {
+          setSuccess("Report received by QuickBugs Cloud. Tracker forwarding is running in the background.");
+        } else {
+          setSuccess(`Submitted to ${getProviderLabel(result.provider)} (${result.issueKey}).`);
+        }
         clearDraft();
         setIsOpen(false);
         return result;

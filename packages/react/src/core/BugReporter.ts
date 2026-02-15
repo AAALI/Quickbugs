@@ -88,7 +88,7 @@ export class BugReporter {
       description: normalizedDescription,
       videoBlob: artifacts.videoBlob,
       screenshotBlob: options.screenshotBlob ?? artifacts.screenshotBlob,
-      networkLogs: artifacts.networkLogs,
+      networkLogs: this.session.finalizeNetworkLogsForSubmit(artifacts.captureMode),
       consoleLogs: options.consoleLogs ?? [],
       jsErrors: options.jsErrors ?? [],
       captureMode: artifacts.captureMode,

@@ -1,4 +1,4 @@
-import { NetworkLogger } from "@quick-bug-reporter/core";
+import { NetworkLogger, type NetworkLogEntry } from "@quick-bug-reporter/core";
 import { ScreenRecorder } from "./ScreenRecorder";
 import { CaptureRegion, ScreenshotCapturer } from "./ScreenshotCapturer";
 import {
@@ -28,6 +28,7 @@ export class BugSession {
   private autoStopTimeout: ReturnType<typeof setTimeout> | null = null;
   private stopInFlight: Promise<BugSessionArtifacts | null> | null = null;
   private lastArtifacts: BugSessionArtifacts | null = null;
+  private screenshotLogsPendingSubmit = false;
 
   constructor(options: BugSessionOptions = {}) {
     this.maxDurationMs = options.maxDurationMs ?? DEFAULT_MAX_RECORDING_MS;
@@ -42,9 +43,14 @@ export class BugSession {
       return;
     }
 
+    if (this.networkLogger.isRecording()) {
+      this.networkLogger.stop();
+    }
+
     this.clearAutoStopTimer();
     this.networkLogger.clear();
     this.lastArtifacts = null;
+    this.screenshotLogsPendingSubmit = false;
 
     this.networkLogger.start();
 
@@ -73,9 +79,14 @@ export class BugSession {
       await this.stop("manual");
     }
 
+    if (this.networkLogger.isRecording()) {
+      this.networkLogger.stop();
+    }
+
     this.clearAutoStopTimer();
     this.networkLogger.clear();
     this.lastArtifacts = null;
+    this.screenshotLogsPendingSubmit = false;
 
     const startedAtMs = Date.now();
     this.networkLogger.start();
@@ -84,7 +95,7 @@ export class BugSession {
       const screenshotBlob = region
         ? await this.screenshotCapturer.captureRegion(region)
         : await this.screenshotCapturer.capture();
-      const networkLogs = this.networkLogger.stop();
+      const networkLogs = this.networkLogger.getLogs();
       const stoppedAtMs = Date.now();
 
       const artifacts: BugSessionArtifacts = {
@@ -99,10 +110,12 @@ export class BugSession {
       };
 
       this.lastArtifacts = artifacts;
+      this.screenshotLogsPendingSubmit = true;
       return artifacts;
     } catch (error) {
       this.networkLogger.stop();
       this.networkLogger.clear();
+      this.screenshotLogsPendingSubmit = false;
       throw error;
     }
   }
@@ -147,18 +160,43 @@ export class BugSession {
     return this.lastArtifacts?.captureMode ?? null;
   }
 
+  finalizeNetworkLogsForSubmit(captureMode: ReportCaptureMode): NetworkLogEntry[] {
+    if (
+      captureMode === "screenshot" &&
+      this.screenshotLogsPendingSubmit &&
+      this.networkLogger.isRecording()
+    ) {
+      const logs = this.networkLogger.stop();
+      this.screenshotLogsPendingSubmit = false;
+      return logs;
+    }
+
+    return this.networkLogger.getLogs();
+  }
+
   resetArtifacts(): void {
     this.lastArtifacts = null;
     this.screenRecorder.clearLastBlob();
+
+    if (this.networkLogger.isRecording()) {
+      this.networkLogger.stop();
+    }
+
     this.networkLogger.clear();
+    this.screenshotLogsPendingSubmit = false;
   }
 
   async dispose(): Promise<void> {
     await this.stop("manual");
     this.clearAutoStopTimer();
     this.screenRecorder.dispose();
-    this.networkLogger.stop();
+
+    if (this.networkLogger.isRecording()) {
+      this.networkLogger.stop();
+    }
+
     this.networkLogger.clear();
+    this.screenshotLogsPendingSubmit = false;
   }
 
   private async stopInternal(reason: RecordingStopReason): Promise<BugSessionArtifacts | null> {
@@ -185,6 +223,7 @@ export class BugSession {
     };
 
     this.lastArtifacts = artifacts;
+    this.screenshotLogsPendingSubmit = false;
 
     return artifacts;
   }

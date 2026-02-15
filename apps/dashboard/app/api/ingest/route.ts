@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 // Service-role client bypasses RLS for ingestion
@@ -33,7 +33,10 @@ async function blobToBuffer(
   fallbackType: string
 ): Promise<NonNullable<BufferFile>> {
   const buf = Buffer.from(await blob.arrayBuffer());
-  const name = blob instanceof File && blob.name ? blob.name : fallbackName;
+  const blobWithName = blob as Blob & { name?: unknown };
+  const name = typeof blobWithName.name === "string" && blobWithName.name.length > 0
+    ? blobWithName.name
+    : fallbackName;
   const type = blob.type || fallbackType;
   return { buffer: buf, name, type };
 }
@@ -51,21 +54,23 @@ async function uploadToStorage(
   if (attachments.consoleLogs) items.push({ dbCol: "console_logs_path", file: attachments.consoleLogs });
   if (attachments.metadata) items.push({ dbCol: "metadata_path", file: attachments.metadata });
 
-  for (const { dbCol, file } of items) {
-    const storagePath = `${basePath}/${file.name}`;
-    const { error } = await supabase.storage
-      .from("report-attachments")
-      .upload(storagePath, file.buffer, {
-        contentType: file.type,
-        upsert: false,
-      });
-    if (error) {
-      console.error(`[ingest] Storage upload failed (${file.name}):`, error.message);
-    } else {
-      paths[dbCol] = storagePath;
-      console.log(`[ingest] Stored: ${storagePath}`);
-    }
-  }
+  await Promise.all(
+    items.map(async ({ dbCol, file }) => {
+      const storagePath = `${basePath}/${file.name}`;
+      const { error } = await supabase.storage
+        .from("report-attachments")
+        .upload(storagePath, file.buffer, {
+          contentType: file.type,
+          upsert: false,
+        });
+      if (error) {
+        console.error(`[ingest] Storage upload failed (${file.name}):`, error.message);
+      } else {
+        paths[dbCol] = storagePath;
+        console.log(`[ingest] Stored: ${storagePath}`);
+      }
+    }),
+  );
 
   return paths;
 }
@@ -132,6 +137,7 @@ export async function POST(request: Request) {
     const stoppedAt = text["stopped_at"] || null;
     const userAgent = text["user_agent"] || "";
     const browserName = text["browser_name"] || "";
+    const browserVersion = text["browser_version"] || null;
     const osName = text["os_name"] || "";
     const deviceType = text["device_type"] || "";
     const screenResolution = text["screen_resolution"] || "";
@@ -142,6 +148,28 @@ export async function POST(request: Request) {
     const connectionType = text["connection_type"] || null;
     const pageUrl = text["page_url"] || null;
     const environment = text["environment"] || null;
+    const appVersion = text["app_version"] || null;
+    const platform = text["platform"] || null;
+    const deviceModel = text["device_model"] || null;
+    const deviceBrand = text["device_brand"] || null;
+    const osVersion = text["os_version"] || null;
+    const appBuildNumber = text["app_build_number"] || null;
+    const invocationMethod = text["invocation_method"] || null;
+    const isEmulator =
+      text["is_emulator"] === "true" ? true : text["is_emulator"] === "false" ? false : null;
+    const batteryLevel =
+      text["battery_level"] == null || text["battery_level"] === ""
+        ? null
+        : Number(text["battery_level"]);
+    const freeStorageMb =
+      text["free_storage_mb"] == null || text["free_storage_mb"] === ""
+        ? null
+        : parseInt(text["free_storage_mb"], 10);
+    const durationMs =
+      text["duration_ms"] == null || text["duration_ms"] === ""
+        ? null
+        : parseInt(text["duration_ms"], 10);
+    const syncForwarding = text["sync_forwarding"] === "true";
     const jsErrorCount = parseInt(text["js_error_count"] || "0", 10) || 0;
 
     console.log("[ingest] title:", JSON.stringify(title));
@@ -217,6 +245,7 @@ export async function POST(request: Request) {
         js_error_count: jsErrorCount,
         user_agent: userAgent || null,
         browser_name: browserName || null,
+        browser_version: browserVersion,
         os_name: osName || null,
         device_type: deviceType || null,
         screen_resolution: screenResolution || null,
@@ -226,7 +255,18 @@ export async function POST(request: Request) {
         timezone,
         connection_type: connectionType,
         page_url: pageUrl,
+        app_version: appVersion,
         environment,
+        platform,
+        device_model: deviceModel,
+        device_brand: deviceBrand,
+        os_version: osVersion,
+        is_emulator: isEmulator,
+        battery_level: Number.isFinite(batteryLevel) ? batteryLevel : null,
+        free_storage_mb: Number.isFinite(freeStorageMb) ? freeStorageMb : null,
+        app_build_number: appBuildNumber,
+        invocation_method: invocationMethod,
+        duration_ms: Number.isFinite(durationMs) ? durationMs : null,
         status: "success",
       })
       .select("id, created_at")
@@ -265,6 +305,7 @@ export async function POST(request: Request) {
       page_url: pageUrl,
       user_agent: userAgent,
       browser_name: browserName,
+      browser_version: browserVersion,
       os_name: osName,
       device_type: deviceType,
       screen_resolution: screenResolution,
@@ -273,23 +314,62 @@ export async function POST(request: Request) {
       locale,
       timezone,
       connection_type: connectionType,
+      app_version: appVersion,
       environment,
+      platform,
+      device_model: deviceModel,
+      device_brand: deviceBrand,
+      os_version: osVersion,
+      is_emulator: isEmulator,
+      battery_level: Number.isFinite(batteryLevel) ? batteryLevel : null,
+      free_storage_mb: Number.isFinite(freeStorageMb) ? freeStorageMb : null,
+      app_build_number: appBuildNumber,
+      invocation_method: invocationMethod,
+      duration_ms: Number.isFinite(durationMs) ? durationMs : null,
     };
 
     console.log("[ingest] Forwarding reportData.description:", JSON.stringify(reportData.description));
 
-    let forwardResult: ForwardResult = null;
-    try {
-      forwardResult = await forwardToTracker(project.id, event, reportData, attachments);
-    } catch (err) {
-      console.error("[ingest] forwardToTracker error:", err);
-      forwardResult = { error: String(err) };
+    if (syncForwarding) {
+      let forwardResult: ForwardResult = null;
+      try {
+        forwardResult = await forwardToTracker(project.id, event, reportData, attachments);
+      } catch (err) {
+        console.error("[ingest] forwardToTracker error:", err);
+        forwardResult = { error: String(err) };
+      }
+
+      console.log("[ingest] ════ Done (sync) ═══ forwarding:", JSON.stringify(forwardResult));
+
+      return NextResponse.json(
+        {
+          id: event.id,
+          created_at: event.created_at,
+          forwarding_status: "completed",
+          forwarding: forwardResult,
+        },
+        { status: 201, headers: corsHeaders }
+      );
     }
 
-    console.log("[ingest] ════ Done ═══ forwarding:", JSON.stringify(forwardResult));
+    after(async () => {
+      try {
+        const forwardResult = await forwardToTracker(project.id, event, reportData, attachments);
+        console.log("[ingest] ════ Async forward done ═══", JSON.stringify(forwardResult));
+      } catch (err) {
+        console.error("[ingest] async forwardToTracker error:", err);
+      }
+    });
+
+    console.log("[ingest] ════ Done (queued) ═══");
 
     return NextResponse.json(
-      { id: event.id, created_at: event.created_at, forwarding: forwardResult },
+      {
+        id: event.id,
+        created_at: event.created_at,
+        forwarding_status: "queued",
+        forwarding: null,
+      },
       { status: 201, headers: corsHeaders }
     );
   } catch (err) {
@@ -755,31 +835,33 @@ async function forwardToJira(
     });
   }
 
-  for (const file of filesToUpload) {
-    try {
-      const fd = new FormData();
-      fd.append("file", new Blob([new Uint8Array(file.buf)], { type: file.contentType }), file.filename);
+  await Promise.all(
+    filesToUpload.map(async (file) => {
+      try {
+        const fd = new FormData();
+        fd.append("file", new Blob([new Uint8Array(file.buf)], { type: file.contentType }), file.filename);
 
-      const attachRes = await fetch(
-        `https://${cleanSiteUrl}/rest/api/3/issue/${issueKey}/attachments`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: authHeader,
-            "X-Atlassian-Token": "no-check",
-          },
-          body: fd,
+        const attachRes = await fetch(
+          `https://${cleanSiteUrl}/rest/api/3/issue/${issueKey}/attachments`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: authHeader,
+              "X-Atlassian-Token": "no-check",
+            },
+            body: fd,
+          }
+        );
+        if (!attachRes.ok) {
+          console.error(`[ingest] Jira attachment upload failed for ${file.filename}:`, attachRes.status);
+        } else {
+          console.log(`[ingest] Jira attachment uploaded: ${file.filename}`);
         }
-      );
-      if (!attachRes.ok) {
-        console.error(`[ingest] Jira attachment upload failed for ${file.filename}:`, attachRes.status);
-      } else {
-        console.log(`[ingest] Jira attachment uploaded: ${file.filename}`);
+      } catch (err) {
+        console.error(`[ingest] Jira attachment error for ${file.filename}:`, err);
       }
-    } catch (err) {
-      console.error(`[ingest] Jira attachment error for ${file.filename}:`, err);
-    }
-  }
+    })
+  );
 
   return { id: issueId, key: issueKey, url: `https://${cleanSiteUrl}/browse/${issueKey}` };
 }

@@ -26,6 +26,20 @@ export type ScreenshotHighlightRegion = {
   height: number;
 };
 
+export type MobileInvocationMethod = "shake" | "button" | "programmatic";
+
+export type BugMobileMetadata = {
+  platform: "ios" | "android";
+  deviceModel: string | null;
+  deviceBrand: string | null;
+  osVersion: string | null;
+  appBuildNumber: string | null;
+  isEmulator: boolean;
+  batteryLevel: number | null;
+  freeStorageMb: number | null;
+  invocationMethod: MobileInvocationMethod;
+};
+
 export type BugClientMetadata = {
   locale: string | null;
   timezone: string | null;
@@ -70,6 +84,7 @@ export type BugClientMetadata = {
     imageHeight: number;
     highlights: ScreenshotHighlightRegion[];
   };
+  mobile?: BugMobileMetadata;
 };
 
 export type BugSessionArtifacts = {

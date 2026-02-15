@@ -65,6 +65,7 @@ export function IntegrationCard({
       fd.set("viewport", `${window.innerWidth}x${window.innerHeight}`);
       fd.set("page_url", window.location.href);
       fd.set("environment", "test");
+      fd.set("sync_forwarding", "true");
 
       // Generate a small test screenshot (1x1 red PNG)
       const canvas = document.createElement("canvas");
@@ -269,6 +270,8 @@ function getSnippet(projectKey: string): string {
 const cloud = new CloudIntegration({
   projectKey: "${projectKey}",
   endpoint: "${typeof window !== "undefined" ? window.location.origin : "https://your-app.com"}/api/ingest",
+  appVersion: "1.0.0",
+  environment: "production",
 });
 
 function App() {

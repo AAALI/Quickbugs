@@ -13,8 +13,8 @@
 | **0 — Monorepo Setup** | ✅ Complete | Done |
 | **1 — Supabase + Landing + Auth + Onboarding** | ✅ Complete | Done |
 | **2 — Edge Function + CloudIntegration** | ✅ Complete | Done |
-| **3 — Dashboard + Beta Launch** | � In Progress | 1-2 weeks |
-| **4 — React Native SDK** | 🔲 Queued | 2-3 weeks |
+| **3 — Dashboard + Beta Launch** | 🚧 In Progress | 1-2 weeks |
+| **4 — React Native SDK** | 🚧 In Progress | 2-3 weeks |
 | **5 — Billing + Growth** | 🔲 Ongoing | — |
 
 ---
@@ -128,8 +128,8 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 - [x] Dashboard overview (stats cards, project list, recent reports table)
 - [x] Empty state for projects with no reports
 - [x] Loading skeletons (dashboard + settings)
-- [ ] Project detail page — all reports for a project with filters/search
-- [ ] Report detail page — full report metadata, external issue link
+- [x] Project detail page — all reports for a project with filters/search
+- [x] Report detail page — full report metadata, external issue link
 
 ### 3.2 Project Management
 
@@ -144,14 +144,14 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ### 3.3 Analytics Dashboard
 
-- [ ] **Bug count over time** — line chart (reports per day/week/month)
-- [ ] **Browser breakdown** — bar chart
-- [ ] **OS breakdown** — bar chart
+- [x] **Bug count over time** — line chart (reports per day/week/month)
+- [x] **Browser breakdown** — bar chart
+- [x] **OS breakdown** — bar chart
 - [ ] **App versions impacted** — table with bug count, first/last seen
-- [ ] **Top pages** — table ranked by report count
-- [ ] **Device type split** — desktop / mobile / tablet
-- [ ] **Capture mode breakdown** — screenshot vs video ratio
-- [ ] **Success rate** — percentage of reports forwarded
+- [x] **Top pages** — table ranked by report count
+- [x] **Device type split** — desktop / mobile / tablet
+- [x] **Capture mode breakdown** — screenshot vs video ratio
+- [x] **Success rate** — percentage of reports forwarded
 - [ ] Environment filter toggle (production / staging / all)
 - [ ] Date range picker
 
@@ -172,29 +172,29 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 
 ### 4.1 Core Capture
 
-- [ ] Shake detection (`react-native-shake` or accelerometer)
-- [ ] Screenshot capture (`react-native-view-shot`)
-- [ ] Screen recording (`react-native-nitro-screen-recorder`)
-- [ ] Device metadata collection (`react-native-device-info`)
-- [ ] `BugReporter` + `BugSession` adapted for RN
+- [x] Shake detection (`react-native-shake` or accelerometer)
+- [x] Screenshot capture (`react-native-view-shot`)
+- [x] Screen recording (`react-native-nitro-screen-recorder`)
+- [x] Device metadata collection (`react-native-device-info`)
+- [x] `BugReporter` + `BugSession` adapted for RN
 
 ### 4.2 UI Components
 
-- [ ] Bottom sheet report form (`@gorhom/bottom-sheet`)
-- [ ] Screenshot annotator (`@shopify/react-native-skia`)
-- [ ] Floating action button
-- [ ] Recording indicator overlay
+- [x] Bottom sheet report form (`@gorhom/bottom-sheet`)
+- [x] Screenshot annotator (`@shopify/react-native-skia`)
+- [x] Floating action button
+- [x] Recording indicator overlay
 
 ### 4.3 Integration
 
-- [ ] Add mobile columns to `report_events` migration (`platform`, `device_model`, `os_version`, `app_build`)
-- [ ] Update Edge Function to handle mobile-specific fields
-- [ ] CloudIntegration works identically (already in core)
+- [x] Add mobile columns to `report_events` migration (`platform`, `device_model`, `os_version`, `app_build`)
+- [x] Update Edge Function to handle mobile-specific fields
+- [x] CloudIntegration works identically (already in core)
 
 ### 4.4 Ship
 
 - [ ] Expo dev client example app
-- [ ] README with setup guide
+- [x] README with setup guide
 - [ ] Publish to npm
 
 **Reference:** Full architecture and native module research in [`REACT_NATIVE_SDK.md`](./REACT_NATIVE_SDK.md)
