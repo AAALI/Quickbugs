@@ -21,7 +21,7 @@ function getSupabaseClient() {
 
 // ─── Types ───────────────────────────────────────────────────────────
 
-type BufferFile = { buffer: Buffer; name: string; type: string } | null;
+type BufferFile = { buffer: Uint8Array; name: string; type: string } | null;
 
 type Attachments = {
   screenshot: BufferFile;
@@ -38,7 +38,10 @@ async function blobToBuffer(
   fallbackName: string,
   fallbackType: string
 ): Promise<NonNullable<BufferFile>> {
-  const buf = Buffer.from(await blob.arrayBuffer());
+  // Use Web Standard ArrayBuffer instead of Node.js Buffer for Cloudflare Workers
+  const arrayBuf = await blob.arrayBuffer();
+  const buf = new Uint8Array(arrayBuf);
+  
   const blobWithName = blob as Blob & { name?: unknown };
   const name = typeof blobWithName.name === "string" && blobWithName.name.length > 0
     ? blobWithName.name
