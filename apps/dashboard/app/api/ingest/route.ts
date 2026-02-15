@@ -318,6 +318,8 @@ export async function POST(request: Request) {
         .eq("id", event.id);
       if (updateError) {
         console.error("[ingest] Storage path update failed:", updateError.message);
+      }
+    }
 
     // ─── 7. Forward to connected trackers ─────────────────────
     // Build reportData from explicit variables (not from a generic map)
