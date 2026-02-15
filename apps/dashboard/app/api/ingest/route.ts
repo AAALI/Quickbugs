@@ -254,6 +254,8 @@ export async function POST(request: Request) {
       "networkLogs:", !!networkLogs, "consoleLogs:", !!consoleLogs, "metadata:", !!metadata);
 
     // ─── 4. Store report in DB FIRST ──────────────────────────
+    // Note: Mobile-specific fields (platform, device_model, etc.) are parsed but not inserted
+    // since React Native SDK is parked and those columns don't exist in the database yet
     const { data: event, error: insertError } = await supabase
       .from("report_events")
       .insert({
@@ -281,16 +283,6 @@ export async function POST(request: Request) {
         page_url: pageUrl,
         app_version: appVersion,
         environment,
-        platform,
-        device_model: deviceModel,
-        device_brand: deviceBrand,
-        os_version: osVersion,
-        is_emulator: isEmulator,
-        battery_level: Number.isFinite(batteryLevel) ? batteryLevel : null,
-        free_storage_mb: Number.isFinite(freeStorageMb) ? freeStorageMb : null,
-        app_build_number: appBuildNumber,
-        invocation_method: invocationMethod,
-        duration_ms: Number.isFinite(durationMs) ? durationMs : null,
         status: "success",
       })
       .select("id, created_at")
@@ -326,18 +318,15 @@ export async function POST(request: Request) {
         .eq("id", event.id);
       if (updateError) {
         console.error("[ingest] Storage path update failed:", updateError.message);
-      }
-    }
 
     // ─── 7. Forward to connected trackers ─────────────────────
     // Build reportData from explicit variables (not from a generic map)
+    // Note: Mobile-specific fields omitted since RN SDK is parked
     const reportData: Record<string, unknown> = {
       title,
       description,
       provider,
       capture_mode: captureMode,
-      stopped_at: stoppedAt,
-      page_url: pageUrl,
       user_agent: userAgent,
       browser_name: browserName,
       browser_version: browserVersion,
@@ -349,18 +338,10 @@ export async function POST(request: Request) {
       locale,
       timezone,
       connection_type: connectionType,
+      page_url: pageUrl,
+      stopped_at: stoppedAt,
       app_version: appVersion,
       environment,
-      platform,
-      device_model: deviceModel,
-      device_brand: deviceBrand,
-      os_version: osVersion,
-      is_emulator: isEmulator,
-      battery_level: Number.isFinite(batteryLevel) ? batteryLevel : null,
-      free_storage_mb: Number.isFinite(freeStorageMb) ? freeStorageMb : null,
-      app_build_number: appBuildNumber,
-      invocation_method: invocationMethod,
-      duration_ms: Number.isFinite(durationMs) ? durationMs : null,
     };
 
     console.log("[ingest] Forwarding reportData.description:", JSON.stringify(reportData.description));
