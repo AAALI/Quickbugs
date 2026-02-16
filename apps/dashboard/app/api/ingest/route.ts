@@ -162,6 +162,13 @@ export async function POST(request: Request) {
     const pageUrl = text["page_url"] || null;
     const environment = text["environment"] || null;
     const appVersion = text["app_version"] || null;
+    
+    // Structured bug report fields
+    const stepsToReproduce = text["steps_to_reproduce"] || null;
+    const expectedResult = text["expected_result"] || null;
+    const actualResult = text["actual_result"] || null;
+    const additionalContext = text["additional_context"] || null;
+    
     const platform = text["platform"] || null;
     const deviceModel = text["device_model"] || null;
     const deviceBrand = text["device_brand"] || null;
@@ -262,6 +269,10 @@ export async function POST(request: Request) {
         project_id: project.id,
         title,
         description: description || null,
+        steps_to_reproduce: stepsToReproduce,
+        expected_result: expectedResult,
+        actual_result: actualResult,
+        additional_context: additionalContext,
         provider,
         capture_mode: captureMode,
         has_screenshot: !!screenshot,
@@ -327,6 +338,10 @@ export async function POST(request: Request) {
     const reportData: Record<string, unknown> = {
       title,
       description,
+      steps_to_reproduce: stepsToReproduce,
+      expected_result: expectedResult,
+      actual_result: actualResult,
+      additional_context: additionalContext,
       provider,
       capture_mode: captureMode,
       user_agent: userAgent,
@@ -517,19 +532,48 @@ function buildJiraDescription(
   attachments: Attachments
 ): string {
   console.log("[ingest] buildJiraDescription — e.description:", JSON.stringify(e.description), "type:", typeof e.description);
-  const lines: string[] = [
-    (e.description as string) || "No additional details provided.",
-    "",
-    "Context:",
-    `- Reported At: ${e.stopped_at || new Date().toISOString()}`,
-    `- Capture Mode: ${(e.capture_mode as string) === "video" ? "Video" : "Screenshot"}`,
-    `- Page URL: ${e.page_url || "Unknown"}`,
-  ];
+  const lines: string[] = [];
+  
+  // Use structured fields if available, otherwise fall back to description
+  if (e.steps_to_reproduce || e.expected_result || e.actual_result || e.additional_context) {
+    if (e.steps_to_reproduce) {
+      lines.push("**Steps to Reproduce:**");
+      lines.push(e.steps_to_reproduce as string);
+      lines.push("");
+    }
+    
+    if (e.expected_result) {
+      lines.push("**Expected Result:**");
+      lines.push(e.expected_result as string);
+      lines.push("");
+    }
+    
+    if (e.actual_result) {
+      lines.push("**Actual Result:**");
+      lines.push(e.actual_result as string);
+      lines.push("");
+    }
+    
+    if (e.additional_context) {
+      lines.push("**Additional Context:**");
+      lines.push(e.additional_context as string);
+      lines.push("");
+    }
+  } else {
+    // Fallback to legacy description
+    lines.push((e.description as string) || "No additional details provided.");
+    lines.push("");
+  }
+  
+  lines.push("**Context:**");
+  lines.push(`- Reported At: ${e.stopped_at || new Date().toISOString()}`);
+  lines.push(`- Capture Mode: ${(e.capture_mode as string) === "video" ? "Video" : "Screenshot"}`);
+  lines.push(`- Page URL: ${e.page_url || "Unknown"}`);
 
   const hasAttachments =
     attachments.screenshot || attachments.video || attachments.networkLogs || attachments.metadata;
   if (hasAttachments) {
-    lines.push("", "Attachments:");
+    lines.push("", "**Attachments:**");
     if (attachments.screenshot) lines.push("- Screenshot attached");
     if (attachments.video) lines.push("- Screen recording attached");
     if (attachments.networkLogs) lines.push("- Network logs attached (network-logs.txt)");
@@ -541,19 +585,70 @@ function buildJiraDescription(
 }
 
 function toJiraAdf(text: string): Record<string, unknown> {
-  const paragraphs = text
-    .split(/\n{2,}/)
-    .map((chunk) => chunk.trim())
-    .filter(Boolean)
-    .map((chunk) => ({
-      type: "paragraph",
-      content: [{ type: "text", text: chunk }],
-    }));
+  const content: Array<Record<string, unknown>> = [];
+  
+  // Split by double newlines to get sections
+  const sections = text.split(/\n{2,}/).map(s => s.trim()).filter(Boolean);
+  
+  for (const section of sections) {
+    const lines = section.split("\n");
+    
+    // Check if first line is a header (starts with ** and ends with :**)
+    const firstLine = lines[0];
+    const headerMatch = firstLine.match(/^\*\*(.+?):\*\*$/);
+    
+    if (headerMatch) {
+      // Add header paragraph with bold
+      content.push({
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: headerMatch[1] + ":",
+            marks: [{ type: "strong" }],
+          },
+        ],
+      });
+      
+      // If there are more lines, add them as separate paragraph
+      if (lines.length > 1) {
+        const restLines = lines.slice(1);
+        const paragraphContent: Array<Record<string, unknown>> = [];
+        
+        for (let i = 0; i < restLines.length; i++) {
+          if (i > 0) {
+            paragraphContent.push({ type: "hardBreak" });
+          }
+          paragraphContent.push({ type: "text", text: restLines[i] });
+        }
+        
+        content.push({
+          type: "paragraph",
+          content: paragraphContent,
+        });
+      }
+    } else {
+      // Regular paragraph - split into lines
+      const paragraphContent: Array<Record<string, unknown>> = [];
+      
+      for (let i = 0; i < lines.length; i++) {
+        if (i > 0) {
+          paragraphContent.push({ type: "hardBreak" });
+        }
+        paragraphContent.push({ type: "text", text: lines[i] });
+      }
+      
+      content.push({
+        type: "paragraph",
+        content: paragraphContent,
+      });
+    }
+  }
 
   return {
     type: "doc",
     version: 1,
-    content: paragraphs,
+    content,
   };
 }
 
@@ -562,15 +657,45 @@ function buildLinearDescription(
   attachments: Attachments,
   mediaLinks: { screenshotUrl: string | null; videoUrl: string | null }
 ): string {
-  const lines: string[] = [
-    (e.description as string) || "No additional details provided.",
-    "",
-    "### Context",
+  const lines: string[] = [];
+  
+  // Use structured fields if available, otherwise fall back to description
+  if (e.steps_to_reproduce || e.expected_result || e.actual_result || e.additional_context) {
+    if (e.steps_to_reproduce) {
+      lines.push("### Steps to Reproduce");
+      lines.push(e.steps_to_reproduce as string);
+      lines.push("");
+    }
+    
+    if (e.expected_result) {
+      lines.push("### Expected Result");
+      lines.push(e.expected_result as string);
+      lines.push("");
+    }
+    
+    if (e.actual_result) {
+      lines.push("### Actual Result");
+      lines.push(e.actual_result as string);
+      lines.push("");
+    }
+    
+    if (e.additional_context) {
+      lines.push("### Additional Context");
+      lines.push(e.additional_context as string);
+      lines.push("");
+    }
+  } else {
+    // Fallback to legacy description
+    lines.push((e.description as string) || "No additional details provided.");
+    lines.push("");
+  }
+  
+  lines.push("### Context",
     `- Reported At: ${e.stopped_at || new Date().toISOString()}`,
     `- Capture Mode: ${(e.capture_mode as string) === "video" ? "Video" : "Screenshot"}`,
     `- Page URL: ${e.page_url || "Unknown"}`,
     "",
-  ];
+  );
 
   if (mediaLinks.screenshotUrl || mediaLinks.videoUrl) {
     lines.push("### Media");

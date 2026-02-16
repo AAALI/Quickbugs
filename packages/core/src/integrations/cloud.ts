@@ -58,6 +58,13 @@ export class CloudIntegration implements BugReporterIntegration {
     fd.set("project_key", this.projectKey);
     fd.set("title", payload.title);
     fd.set("description", payload.description || "");
+    
+    // Structured fields
+    if (payload.stepsToReproduce) fd.set("steps_to_reproduce", payload.stepsToReproduce);
+    if (payload.expectedResult) fd.set("expected_result", payload.expectedResult);
+    if (payload.actualResult) fd.set("actual_result", payload.actualResult);
+    if (payload.additionalContext) fd.set("additional_context", payload.additionalContext);
+    
     fd.set("provider", "cloud");
     fd.set("capture_mode", payload.captureMode);
     fd.set("has_screenshot", String(Boolean(payload.screenshotBlob)));

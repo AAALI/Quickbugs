@@ -92,7 +92,8 @@ Quickbugs/                          ← Root (pnpm workspace + Turborepo)
 │       ├── 20260214160000_fix_vault_helpers.sql   ← Vault fix
 │       ├── 20260214200000_fix_vault_upsert.sql    ← Vault upsert fix
 │       ├── 20260214220000_add_description_column.sql ← Added description to report_events
-│       └── 20260214230000_storage_bucket_and_paths.sql ← Storage bucket + path columns
+│       ├── 20260214230000_storage_bucket_and_paths.sql ← Storage bucket + path columns
+│       └── 20260216000000_add_structured_fields.sql ← Added steps_to_reproduce, expected_result, actual_result, additional_context
 │
 ├── test-app-tw3/                   ← Test app: Tailwind CSS v3 + Vite + React 19
 │   ├── src/App.tsx                 ← Uses CloudIntegration with /api/ingest proxy
@@ -181,11 +182,17 @@ BugReporterProvider.captureQuickScreenshot() or startRecording()
 User sees BugReporterModal (Step 1: Review → Step 2: Context)
     │
     ├── User annotates screenshot (ScreenshotAnnotator → annotatedBlob)
-    ├── User types title + description
+    ├── User types title
+    ├── User fills in structured bug details (tab-based UI):
+    │   ├── Steps to Reproduce (auto-numbered on Enter)
+    │   ├── Expected Result
+    │   ├── Actual Result
+    │   └── Additional Context
+    │   (All optional, 4000 char combined limit)
     ├── User selects provider (Cloud/Jira/Linear)
     │
     ▼
-BugReporterProvider.submitReport(title, description)
+BugReporterProvider.submitReport(title, { stepsToReproduce, expectedResult, actualResult, additionalContext })
     │
     ▼
 BugReporter.submit(title, description, { screenshotBlob, metadata, consoleLogs, jsErrors })
@@ -207,7 +214,11 @@ FormData fields set:
     TEXT FIELDS (fd.set):
     ├── project_key          ← from CloudIntegration constructor options
     ├── title                ← payload.title
-    ├── description          ← payload.description
+    ├── description          ← payload.description (concatenated from structured fields for backward compat)
+    ├── steps_to_reproduce   ← payload.stepsToReproduce (optional structured field)
+    ├── expected_result      ← payload.expectedResult (optional structured field)
+    ├── actual_result        ← payload.actualResult (optional structured field)
+    ├── additional_context   ← payload.additionalContext (optional structured field)
     ├── provider             ← "cloud"
     ├── capture_mode         ← "screenshot" or "video"
     ├── has_screenshot       ← "true"/"false"
@@ -313,7 +324,11 @@ CloudIntegration parses response:
 id                  UUID PRIMARY KEY
 project_id          UUID → projects(id)
 title               TEXT NOT NULL
-description         TEXT                    -- User's bug description
+description         TEXT                    -- Legacy/concatenated field (backward compat)
+steps_to_reproduce  TEXT                    -- Structured: Steps to reproduce the bug
+expected_result     TEXT                    -- Structured: What was expected to happen
+actual_result       TEXT                    -- Structured: What actually happened
+additional_context  TEXT                    -- Structured: Additional context/notes
 provider            TEXT NOT NULL           -- "cloud", "jira", "linear"
 capture_mode        TEXT NOT NULL           -- "screenshot" or "video"
 has_screenshot      BOOLEAN

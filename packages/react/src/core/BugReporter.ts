@@ -25,6 +25,11 @@ type BugReporterSubmitOptions = {
   consoleLogs?: ConsoleLogEntry[];
   jsErrors?: CapturedJsError[];
   onProgress?: SubmitProgressCallback;
+  // Structured bug report fields
+  stepsToReproduce?: string;
+  expectedResult?: string;
+  actualResult?: string;
+  additionalContext?: string;
 };
 
 export class BugReporter {
@@ -86,6 +91,10 @@ export class BugReporter {
     const payload = {
       title: normalizedTitle,
       description: normalizedDescription,
+      stepsToReproduce: options.stepsToReproduce,
+      expectedResult: options.expectedResult,
+      actualResult: options.actualResult,
+      additionalContext: options.additionalContext,
       videoBlob: artifacts.videoBlob,
       screenshotBlob: options.screenshotBlob ?? artifacts.screenshotBlob,
       networkLogs: this.session.finalizeNetworkLogsForSubmit(artifacts.captureMode),

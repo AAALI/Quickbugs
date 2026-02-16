@@ -155,6 +155,17 @@ Restructured the repo from a single package into a pnpm monorepo with Turborepo.
 - [ ] Environment filter toggle (production / staging / all)
 - [ ] Date range picker
 
+### 3.5 Structured Bug Report Fields ✅
+
+- [x] **Tab-based UI** — Steps to Reproduce, Expected Result, Actual Result, Additional Context
+- [x] **Auto-numbering** — Press Enter in Steps tab to automatically increment numbers
+- [x] **Character limit** — 4000 chars combined across all tabs with live counter
+- [x] **Database migration** — Added 4 new TEXT columns to `report_events`
+- [x] **Backward compatibility** — Legacy `description` field maintained as concatenated version
+- [x] **Jira formatting** — Proper ADF with bold headers using `marks: [{ type: "strong" }]`
+- [x] **Linear formatting** — H3 markdown headers for structured sections
+- [x] **Full propagation** — Types → UI → CloudIntegration → API → Database → Trackers
+
 ### 3.4 Deploy + Beta Launch
 
 - [ ] Deploy to Cloudflare Pages (or Vercel)

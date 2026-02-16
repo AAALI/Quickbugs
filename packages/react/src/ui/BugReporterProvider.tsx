@@ -69,7 +69,15 @@ type BugReporterContextValue = {
   screenshotHighlightCount: number;
   updateScreenshotAnnotation: (annotation: ScreenshotAnnotationState) => void;
   clearDraft: () => void;
-  submitReport: (title: string, description: string) => Promise<BugSubmitResult | null>;
+  submitReport: (
+    title: string,
+    structuredFields: {
+      stepsToReproduce: string;
+      expectedResult: string;
+      actualResult: string;
+      additionalContext: string;
+    }
+  ) => Promise<BugSubmitResult | null>;
   resetMessages: () => void;
 };
 
@@ -529,7 +537,15 @@ export function BugReporterProvider({
   }, []);
 
   const submitReport = useCallback(
-    async (title: string, description: string) => {
+    async (
+      title: string,
+      structuredFields: {
+        stepsToReproduce: string;
+        expectedResult: string;
+        actualResult: string;
+        additionalContext: string;
+      }
+    ) => {
       const reporter = getOrCreateReporter();
 
       if (!reporter) {
@@ -556,6 +572,25 @@ export function BugReporterProvider({
       setError(null);
       setSuccess(null);
 
+      // Build concatenated description from structured fields for backward compatibility
+      const { stepsToReproduce, expectedResult, actualResult, additionalContext } = structuredFields;
+      const sections: string[] = [];
+
+      if (stepsToReproduce.trim()) {
+        sections.push(`## Steps to Reproduce\n${stepsToReproduce.trim()}`);
+      }
+      if (expectedResult.trim()) {
+        sections.push(`## Expected Result\n${expectedResult.trim()}`);
+      }
+      if (actualResult.trim()) {
+        sections.push(`## Actual Result\n${actualResult.trim()}`);
+      }
+      if (additionalContext.trim()) {
+        sections.push(`## Additional Context\n${additionalContext.trim()}`);
+      }
+
+      const description = sections.length > 0 ? sections.join('\n\n') : 'No description provided';
+
       const screenshotBlobForSubmit =
         draftMode === "screenshot" ? screenshotAnnotation.annotatedBlob ?? screenshotBlob : null;
 
@@ -577,6 +612,10 @@ export function BugReporterProvider({
 
       try {
         const result = await reporter.submit(title, description, {
+          stepsToReproduce,
+          expectedResult,
+          actualResult,
+          additionalContext,
           screenshotBlob: screenshotBlobForSubmit,
           metadata,
           consoleLogs,

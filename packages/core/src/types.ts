@@ -100,7 +100,14 @@ export type BugSessionArtifacts = {
 
 export type BugReportPayload = {
   title: string;
-  description: string;
+  description: string; // Legacy/concatenated field for backward compatibility
+  
+  // Structured fields (optional, concatenated into description for legacy support)
+  stepsToReproduce?: string;
+  expectedResult?: string;
+  actualResult?: string;
+  additionalContext?: string;
+  
   videoBlob: Blob | null;
   screenshotBlob: Blob | null;
   networkLogs: NetworkLogEntry[];

@@ -37,6 +37,9 @@ function providerLabel(provider: BugTrackerProvider): string {
 }
 
 type WizardStep = "review" | "context";
+type ContextTab = "steps" | "expected" | "actual" | "context";
+
+const CHAR_LIMIT = 4000;
 
 export function BugReporterModal() {
   const {
@@ -68,10 +71,53 @@ export function BugReporterModal() {
   } = useBugReporter();
 
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [stepsToReproduce, setStepsToReproduce] = useState("");
+  const [expectedResult, setExpectedResult] = useState("");
+  const [actualResult, setActualResult] = useState("");
+  const [additionalContext, setAdditionalContext] = useState("");
   const [step, setStep] = useState<WizardStep>("review");
+  const [activeTab, setActiveTab] = useState<ContextTab>("steps");
+
+  const totalChars = stepsToReproduce.length + expectedResult.length + actualResult.length + additionalContext.length;
+  const isOverLimit = totalChars > CHAR_LIMIT;
 
   const elapsedLabel = useMemo(() => formatElapsed(elapsedMs), [elapsedMs]);
+
+  // Auto-number steps on Enter key
+  const handleStepsKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      
+      const textarea = event.currentTarget;
+      const cursorPos = textarea.selectionStart;
+      const textBeforeCursor = stepsToReproduce.substring(0, cursorPos);
+      const textAfterCursor = stepsToReproduce.substring(cursorPos);
+      
+      // Find the last line before cursor
+      const lines = textBeforeCursor.split('\n');
+      const currentLine = lines[lines.length - 1];
+      
+      // Extract number from current line (e.g., "3. some text" -> 3)
+      const numberMatch = currentLine.match(/^(\d+)\.\s/);
+      const nextNumber = numberMatch ? parseInt(numberMatch[1]) + 1 : (lines.length > 0 && stepsToReproduce.trim() === "" ? 1 : lines.length + 1);
+      
+      const newText = textBeforeCursor + "\n" + nextNumber + ". " + textAfterCursor;
+      setStepsToReproduce(newText);
+      
+      // Set cursor position after the number and dot
+      setTimeout(() => {
+        const newCursorPos = cursorPos + ("\n" + nextNumber + ". ").length;
+        textarea.setSelectionRange(newCursorPos, newCursorPos);
+      }, 0);
+    }
+  };
+
+  // Auto-start with "1. " if Steps tab is empty
+  const handleStepsFocus = () => {
+    if (stepsToReproduce.trim() === "") {
+      setStepsToReproduce("1. ");
+    }
+  };
 
   const handleDialogOpenChange = (open: boolean) => {
     if (open) {
@@ -86,11 +132,20 @@ export function BugReporterModal() {
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    const result = await submitReport(title, description);
+    const result = await submitReport(title, {
+      stepsToReproduce,
+      expectedResult,
+      actualResult,
+      additionalContext,
+    });
     if (result) {
       setTitle("");
-      setDescription("");
+      setStepsToReproduce("");
+      setExpectedResult("");
+      setActualResult("");
+      setAdditionalContext("");
       setStep("review");
+      setActiveTab("steps");
     }
   };
 
@@ -102,7 +157,8 @@ export function BugReporterModal() {
     hasIntegrations &&
     !!selectedProvider &&
     hasDraft &&
-    title.trim().length > 0;
+    title.trim().length > 0 &&
+    !isOverLimit;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleDialogOpenChange}>
@@ -267,17 +323,99 @@ export function BugReporterModal() {
                   />
                 </div>
 
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-sm font-medium" htmlFor="bug-description">
-                    Quick note
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-sm font-medium">
+                    Bug Details
                   </label>
-                  <Textarea
-                    id="bug-description"
-                    maxLength={4000}
-                    placeholder="What did you expect, what happened, and any quick repro steps."
-                    value={description}
-                    onChange={(event) => setDescription(event.target.value)}
-                  />
+                  
+                  {/* Tab Navigation */}
+                  <div className="flex gap-1 border-b border-gray-200">
+                    <button
+                      type="button"
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        activeTab === "steps"
+                          ? "border-b-2 border-indigo-600 text-indigo-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                      onClick={() => setActiveTab("steps")}
+                    >
+                      Steps
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        activeTab === "expected"
+                          ? "border-b-2 border-indigo-600 text-indigo-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                      onClick={() => setActiveTab("expected")}
+                    >
+                      Expected
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        activeTab === "actual"
+                          ? "border-b-2 border-indigo-600 text-indigo-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                      onClick={() => setActiveTab("actual")}
+                    >
+                      Actual
+                    </button>
+                    <button
+                      type="button"
+                      className={`px-3 py-2 text-sm font-medium transition-colors ${
+                        activeTab === "context"
+                          ? "border-b-2 border-indigo-600 text-indigo-600"
+                          : "text-gray-500 hover:text-gray-700"
+                      }`}
+                      onClick={() => setActiveTab("context")}
+                    >
+                      Context
+                    </button>
+                  </div>
+
+                  {/* Tab Content */}
+                  {activeTab === "steps" && (
+                    <Textarea
+                      id="bug-steps"
+                      placeholder="Press Enter to start numbering steps..."
+                      value={stepsToReproduce}
+                      onChange={(event) => setStepsToReproduce(event.target.value)}
+                      onKeyDown={handleStepsKeyDown}
+                      onFocus={handleStepsFocus}
+                    />
+                  )}
+                  {activeTab === "expected" && (
+                    <Textarea
+                      id="bug-expected"
+                      placeholder="Describe what should happen..."
+                      value={expectedResult}
+                      onChange={(event) => setExpectedResult(event.target.value)}
+                    />
+                  )}
+                  {activeTab === "actual" && (
+                    <Textarea
+                      id="bug-actual"
+                      placeholder="Describe what actually happened..."
+                      value={actualResult}
+                      onChange={(event) => setActualResult(event.target.value)}
+                    />
+                  )}
+                  {activeTab === "context" && (
+                    <Textarea
+                      id="bug-context"
+                      placeholder="Any additional information, workarounds, or notes..."
+                      value={additionalContext}
+                      onChange={(event) => setAdditionalContext(event.target.value)}
+                    />
+                  )}
+
+                  {/* Character Counter */}
+                  <p className={`text-xs ${isOverLimit ? "text-red-600 font-medium" : "text-gray-500"}`}>
+                    {totalChars}/{CHAR_LIMIT} characters {isOverLimit && "(over limit)"}
+                  </p>
                 </div>
 
                 <div className="space-y-1.5">

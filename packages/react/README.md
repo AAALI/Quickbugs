@@ -7,6 +7,7 @@ Drop-in bug reporter for React apps — screenshot capture, video recording, ann
 - **Screenshot capture** — Full-page or region selection via `html2canvas-pro`
 - **Video recording** — Screen + microphone via `MediaRecorder` API
 - **Annotation** — Drag-to-highlight on captured screenshots
+- **Structured bug reports** — Tab-based UI for Steps/Expected/Actual/Context (4000 char total)
 - **Network logging** — Automatic fetch interception during capture
 - **Console capture** — Automatic console log and JS error capture
 - **Integrations** — Linear and Jira (direct API or backend proxy)
