@@ -1,6 +1,6 @@
 {
   "name": "@quick-bug-reporter/core",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Core logic for quick-bug-reporter SDKs — integrations, types, and utilities.",
   "author": "Ali Abdulkadir Ali",
   "license": "MIT",
