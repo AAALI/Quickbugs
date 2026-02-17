@@ -8,9 +8,9 @@ import "quick-bug-reporter-react/styles.css";
 
 const cloud = new CloudIntegration({
   projectKey: "qb_wvw73zh91j5a",
-  endpoint: "https://quickbugs-dashboard.a-abdulkadir-ali.workers.dev/api/ingest",
+  endpoint: "https://quickbugs.com/api/ingest",
   appVersion: "1.0.0",
-  environment: "production",
+  environment: "development",
 });
 
 function App() {
