@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "quickbugs-dashboard",
+  "account_id": "620439a263a6b0dd761a2356ceb13265",
   "main": ".open-next/worker.js",
   "compatibility_date": "2026-02-14",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
