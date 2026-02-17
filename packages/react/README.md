@@ -85,6 +85,63 @@ That's it — a floating "Report Bug" button appears in the bottom-right corner.
 
 ## Integrations
 
+### QuickBugs Cloud (Recommended)
+
+The **CloudIntegration** forwards bug reports to the QuickBugs dashboard, which automatically syncs them to your connected Jira/Linear workspace. This is the **simplest setup** - no proxy endpoints required.
+
+```ts
+import { CloudIntegration } from "quick-bug-reporter-react";
+
+const cloud = new CloudIntegration({
+  projectKey: "your-project-key", // from QuickBugs dashboard
+  endpoint: "https://your-dashboard.com/api/ingest", // optional, defaults to "/api/ingest"
+});
+
+export default function App({ children }) {
+  return (
+    <BugReporterProvider
+      integrations={{ cloud }}
+      defaultProvider="cloud"
+    >
+      {children}
+      <FloatingBugButton />
+      <BugReporterModal />
+    </BugReporterProvider>
+  );
+}
+```
+
+| Option | Description |
+|--------|-------------|
+| `projectKey` | Your project key from QuickBugs dashboard (**required**) |
+| `endpoint` | Dashboard ingest URL (defaults to `/api/ingest`) |
+| `fetchImpl` | Custom fetch implementation |
+
+**Benefits:**
+- ✅ No proxy endpoints to maintain
+- ✅ Centralized bug tracking and analytics
+- ✅ Automatic forwarding to Jira/Linear
+- ✅ 7-day file retention (files forwarded immediately)
+- ✅ Structured bug reports with automatic formatting
+
+**During development**, set up a proxy in your bundler to forward `/api/ingest` to your dashboard:
+
+```ts
+// vite.config.ts
+export default defineConfig({
+  server: {
+    proxy: {
+      '/api/ingest': {
+        target: 'http://localhost:3000', // your dashboard URL
+        changeOrigin: true,
+      },
+    },
+  },
+});
+```
+
+---
+
 ### Jira
 
 ```ts

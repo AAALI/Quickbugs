@@ -41,6 +41,27 @@
 
 ---
 
+## [1.5.1] - 2026-02-17
+
+### Added - 7-Day File Retention Policy
+
+**Storage Optimization:** Implemented automatic cleanup of old attachments to minimize storage costs.
+
+#### Changes
+- **Database function** `delete_old_report_attachments()` for cleaning up files older than 7 days
+- **Edge Function** `cleanup-old-attachments` runs daily at 2 AM UTC via cron
+- **Migration**: `20260217173047_add_storage_lifecycle_policy.sql` adds cleanup function
+- **Files forwarded immediately** to Jira/Linear on report submission
+- **7-day buffer** retained for failed forwarding retries and manual recovery
+- **Documentation updated** in `AGENT_GUIDE.md` and function README
+
+#### Why 7 Days?
+- Files are already stored permanently in Jira/Linear
+- Supabase copies serve as temporary backup only
+- Keeps storage costs minimal while maintaining safety buffer
+
+---
+
 ## Previous Releases
 
 See git history for earlier versions.

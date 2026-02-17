@@ -7,13 +7,8 @@ Lightweight bug reporting infrastructure for Jira and Linear teams. Forward bugs
 | Package | npm | Description |
 |---------|-----|-------------|
 | [`quick-bug-reporter-react`](./packages/react) | [![npm](https://img.shields.io/npm/v/quick-bug-reporter-react)](https://www.npmjs.com/package/quick-bug-reporter-react) | Drop-in bug reporter for React web apps |
+| [`@quick-bug-reporter/core`](./packages/core) | [![npm](https://img.shields.io/npm/v/@quick-bug-reporter/core)](https://www.npmjs.com/package/@quick-bug-reporter/core) | Core logic (types, integrations, utilities) - bundled into react package |
 | [`quick-bug-reporter-react-native`](./packages/react-native) | *Coming soon* | Shake-to-report bug reporter for React Native apps |
-
-### Internal packages
-
-| Package | Description |
-|---------|-------------|
-| [`@quick-bug-reporter/core`](./packages/core) | Shared types, network logger, console capture, and integrations (private — never published to npm) |
 
 ## Monorepo Structure
 
