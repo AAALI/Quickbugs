@@ -241,9 +241,9 @@ const jira = new JiraIntegration({
           <Li>Connection type</Li>
         </ul>
         <P className="mt-3">
-          No media files are stored on QuickBugs servers — screenshots and
-          videos are forwarded to your tracker (Linear/Jira) and only
-          metadata is retained for analytics.
+          Files are forwarded immediately to your tracker (Linear/Jira) and
+          stored temporarily on QuickBugs servers for 7 days as backup.
+          After 7 days, files are automatically deleted to minimize storage costs.
         </P>
       </Section>
 
