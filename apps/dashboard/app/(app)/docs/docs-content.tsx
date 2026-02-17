@@ -45,7 +45,7 @@ import "quick-bug-reporter-react/styles.css";
 
 const cloud = new CloudIntegration({
   projectKey: "${projectKey}",
-  endpoint: "https://your-domain.com/api/ingest",
+  endpoint: "https://quickbugs.com/api/ingest",
 });
 
 function App() {
@@ -80,8 +80,8 @@ function App() {
   projectKey: "${projectKey}",
 
   // Optional — defaults to "/api/ingest"
-  // Set this to your dashboard's full URL in production
-  endpoint: "https://your-domain.com/api/ingest",
+  // Set this to the QuickBugs dashboard URL in production
+  endpoint: "https://quickbugs.com/api/ingest",
 
   // Optional — custom fetch implementation
   // Useful for proxying through your own server
@@ -309,7 +309,7 @@ module.exports = {
 
         <P className="mt-3">
           In production, point the <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">endpoint</code>{" "}
-          option directly to your deployed QuickBugs dashboard URL.
+          option to <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs">https://quickbugs.com/api/ingest</code>.
         </P>
       </Section>
 
