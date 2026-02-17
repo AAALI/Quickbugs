@@ -93,7 +93,8 @@ Quickbugs/                          ← Root (pnpm workspace + Turborepo)
 │       ├── 20260214200000_fix_vault_upsert.sql    ← Vault upsert fix
 │       ├── 20260214220000_add_description_column.sql ← Added description to report_events
 │       ├── 20260214230000_storage_bucket_and_paths.sql ← Storage bucket + path columns
-│       └── 20260216000000_add_structured_fields.sql ← Added steps_to_reproduce, expected_result, actual_result, additional_context
+│       ├── 20260216000000_add_structured_fields.sql ← Added steps_to_reproduce, expected_result, actual_result, additional_context
+│       └── 20260217173047_add_storage_lifecycle_policy.sql ← Cleanup function for 7-day file retention
 │
 ├── test-app-tw3/                   ← Test app: Tailwind CSS v3 + Vite + React 19
 │   ├── src/App.tsx                 ← Uses CloudIntegration with /api/ingest proxy
@@ -367,6 +368,10 @@ created_at          TIMESTAMPTZ
 - **Bucket**: `report-attachments` (private, 50MB limit)
 - **Path pattern**: `{project_id}/{event_id}/{filename}`
 - **Files stored**: bug-screenshot.png, bug-recording.webm, network-logs.txt, console-logs.txt, client-metadata.json
+- **Retention Policy**: Files are automatically deleted after 7 days
+  - Files are forwarded to Jira/Linear immediately on report submission
+  - 7-day retention provides buffer for failed forwarding retries and manual recovery
+  - Cleanup runs daily at 2 AM UTC via `cleanup-old-attachments` Edge Function (cron)
 
 ### Vault (API Token Storage)
 
