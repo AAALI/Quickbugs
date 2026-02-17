@@ -167,8 +167,11 @@ function App() {
 
         <H3 className="mt-6">BugReporterModal</H3>
         <P>
-          The modal dialog for capturing and submitting bug reports. Supports
-          screenshot and video capture modes. No props required.
+          The modal dialog for capturing and submitting bug reports. Features a
+          two-step wizard: (1) Review screenshot/video, (2) Add bug details with
+          structured fields (Steps to Reproduce, Expected Result, Actual Result,
+          Additional Context). All fields optional, 4000 char combined limit.
+          No props required.
         </P>
       </Section>
 
@@ -226,6 +229,7 @@ const jira = new JiraIntegration({
         <P>Each bug report automatically collects:</P>
         <ul className="mt-2 space-y-1.5 text-sm text-slate-600">
           <Li>Screenshot or video recording of the bug</Li>
+          <Li><strong>Structured bug details</strong> (Steps to Reproduce, Expected/Actual Results, Context)</Li>
           <Li>Browser name and version</Li>
           <Li>Operating system</Li>
           <Li>Device type (desktop / mobile / tablet)</Li>
@@ -240,6 +244,25 @@ const jira = new JiraIntegration({
           No media files are stored on QuickBugs servers — screenshots and
           videos are forwarded to your tracker (Linear/Jira) and only
           metadata is retained for analytics.
+        </P>
+      </Section>
+
+      {/* Structured bug reports */}
+      <Section id="structured-fields" title="Structured bug report fields">
+        <P>
+          The bug report modal features a tab-based UI for structured bug details.
+          Users can fill in:
+        </P>
+        <ul className="mt-2 space-y-1.5 text-sm text-slate-600">
+          <Li><strong>Steps to Reproduce</strong> — Auto-numbered list (press Enter to increment)</Li>
+          <Li><strong>Expected Result</strong> — What should happen</Li>
+          <Li><strong>Actual Result</strong> — What actually happened</Li>
+          <Li><strong>Additional Context</strong> — Extra notes, workarounds, etc.</Li>
+        </ul>
+        <P className="mt-3">
+          All fields are optional with a 4000 character combined limit. The structured
+          data is formatted beautifully in Linear and Jira with proper headers and bold
+          formatting.
         </P>
       </Section>
 
