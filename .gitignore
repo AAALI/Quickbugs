@@ -8,3 +8,4 @@ dist/
 .npmrc
 .turbo/
 .parked/
+_platform-export/

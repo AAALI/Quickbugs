@@ -17,6 +17,8 @@ export type CloudIntegrationOptions = {
   fetchImpl?: typeof fetch;
 };
 
+const DEFAULT_INGEST_ENDPOINT = 'https://quickbugs.com/api/ingest';
+
 const noop: SubmitProgressCallback = () => {};
 
 export class CloudIntegration implements BugReporterIntegration {
@@ -34,7 +36,7 @@ export class CloudIntegration implements BugReporterIntegration {
     }
 
     this.projectKey = options.projectKey;
-    this.endpoint = options.ingestUrl ?? options.endpoint ?? "/api/ingest";
+    this.endpoint = options.ingestUrl ?? options.endpoint ?? DEFAULT_INGEST_ENDPOINT;
     this.appVersion = options.appVersion;
     this.environment = options.environment;
     this.fetchFn = options.fetchImpl ?? fetch.bind(globalThis);
