@@ -1,6 +1,6 @@
 import { BugSession } from "./BugSession";
 import { CaptureRegion } from "./ScreenshotCapturer";
-import type { ConsoleLogEntry, CapturedJsError } from "@quick-bug-reporter/core";
+import type { ConsoleLogEntry, CapturedJsError, BreadcrumbEntry, UserIdentity } from "@quick-bug-reporter/core";
 import {
   BugClientMetadata,
   BugReporterIntegration,
@@ -30,6 +30,10 @@ type BugReporterSubmitOptions = {
   expectedResult?: string;
   actualResult?: string;
   additionalContext?: string;
+  // SDK-03: User identity
+  user?: UserIdentity;
+  // SDK-06: Breadcrumbs
+  breadcrumbs?: BreadcrumbEntry[];
 };
 
 export class BugReporter {
@@ -88,6 +92,9 @@ export class BugReporter {
       ...(options.metadata || {}),
     };
 
+    // SDK-01: Capture mic status from session
+    const captureHasMic = this.session.getCaptureHasMic();
+
     const payload = {
       title: normalizedTitle,
       description: normalizedDescription,
@@ -107,6 +114,9 @@ export class BugReporter {
       stoppedAt: artifacts.stoppedAt,
       elapsedMs: artifacts.elapsedMs,
       metadata,
+      captureHasMic,
+      user: options.user,
+      breadcrumbs: options.breadcrumbs,
     };
 
     options.onProgress?.("Submitting to " + this.integration.provider + "…");

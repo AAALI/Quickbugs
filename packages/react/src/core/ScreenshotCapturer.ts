@@ -70,7 +70,41 @@ export type CaptureRegion = {
   height: number;
 };
 
+// SDK-09: Privacy options for screenshot masking
+export type ScreenshotPrivacyOptions = {
+  maskSelectors?: string[];
+  blockSelectors?: string[];
+};
+
+function applyPrivacyToClone(doc: Document, privacy: ScreenshotPrivacyOptions): void {
+  // Mask: blur matched elements
+  if (privacy.maskSelectors) {
+    for (const selector of privacy.maskSelectors) {
+      for (const el of doc.querySelectorAll<HTMLElement>(selector)) {
+        el.style.setProperty("filter", "blur(8px)", "important");
+      }
+    }
+  }
+
+  // Block: replace with grey placeholder
+  if (privacy.blockSelectors) {
+    for (const selector of privacy.blockSelectors) {
+      for (const el of doc.querySelectorAll<HTMLElement>(selector)) {
+        el.style.setProperty("background", "#808080", "important");
+        el.style.setProperty("color", "transparent", "important");
+        el.innerHTML = "";
+      }
+    }
+  }
+}
+
 export class ScreenshotCapturer {
+  private privacy: ScreenshotPrivacyOptions;
+
+  constructor(privacy: ScreenshotPrivacyOptions = {}) {
+    this.privacy = privacy;
+  }
+
   async capture(): Promise<Blob> {
     if (typeof window === "undefined" || typeof document === "undefined") {
       throw new Error("Screenshot capture is not available in this environment.");
@@ -158,6 +192,8 @@ export class ScreenshotCapturer {
               if (attempt.sanitizeColorFunctions) {
                 sanitizeCloneForModernColors(clonedDocument);
               }
+              // SDK-09: Apply privacy masking/blocking
+              applyPrivacyToClone(clonedDocument, this.privacy);
             },
           });
 

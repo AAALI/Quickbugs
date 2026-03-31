@@ -160,6 +160,11 @@ export class BugSession {
     return this.lastArtifacts?.captureMode ?? null;
   }
 
+  /** SDK-01: Whether the current/last recording had microphone access. */
+  getCaptureHasMic(): boolean {
+    return this.screenRecorder.hasMic;
+  }
+
   finalizeNetworkLogsForSubmit(captureMode: ReportCaptureMode): NetworkLogEntry[] {
     if (
       captureMode === "screenshot" &&

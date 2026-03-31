@@ -61,6 +61,12 @@ export class ScreenRecorder {
   private stopResolver: ((value: Blob | null) => void) | null = null;
   private lastBlob: Blob | null = null;
   private onEnded: (() => void) | null = null;
+  private _hasMic = false;
+
+  /** Whether the last/current recording has microphone audio. */
+  get hasMic(): boolean {
+    return this._hasMic;
+  }
 
   async start(options: ScreenRecorderStartOptions = {}): Promise<void> {
     if (this.recording) {
@@ -71,10 +77,9 @@ export class ScreenRecorder {
       typeof navigator === "undefined" ||
       !navigator.mediaDevices ||
       typeof navigator.mediaDevices.getDisplayMedia !== "function" ||
-      typeof navigator.mediaDevices.getUserMedia !== "function" ||
       typeof MediaRecorder === "undefined"
     ) {
-      throw new Error("This browser does not support screen and microphone recording.");
+      throw new Error("This browser does not support screen recording.");
     }
 
     this.cleanupStreams();
@@ -102,39 +107,34 @@ export class ScreenRecorder {
 
       this.displayStream = displayStream;
 
-      let microphoneStream: MediaStream;
-      try {
-        microphoneStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-          },
-          video: false,
-        });
-      } catch (error) {
-        for (const track of displayStream.getTracks()) {
-          track.stop();
-        }
+      // SDK-01: Microphone is optional — never fail recording if mic is denied
+      let microphoneStream: MediaStream | null = null;
+      this._hasMic = false;
 
-        throw error;
+      if (typeof navigator.mediaDevices.getUserMedia === "function") {
+        try {
+          microphoneStream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+            },
+            video: false,
+          });
+
+          const micAudioTracks = microphoneStream.getAudioTracks();
+          if (micAudioTracks.length > 0) {
+            this._hasMic = true;
+            for (const track of micAudioTracks) {
+              track.enabled = true;
+            }
+          }
+        } catch {
+          console.warn("[QuickBugs] Microphone unavailable — recording without mic audio.");
+          microphoneStream = null;
+        }
       }
 
       this.microphoneStream = microphoneStream;
-
-      const microphoneAudioTracks = microphoneStream.getAudioTracks();
-      if (microphoneAudioTracks.length === 0) {
-        for (const track of displayStream.getTracks()) {
-          track.stop();
-        }
-        for (const track of microphoneStream.getTracks()) {
-          track.stop();
-        }
-        throw new Error("Microphone audio track is unavailable.");
-      }
-
-      for (const track of microphoneAudioTracks) {
-        track.enabled = true;
-      }
 
       const mixedAudioTracks = await this.buildMixedAudioTracks(displayStream, microphoneStream);
       const tracks = [...displayStream.getVideoTracks(), ...mixedAudioTracks];
@@ -143,8 +143,10 @@ export class ScreenRecorder {
         for (const track of displayStream.getTracks()) {
           track.stop();
         }
-        for (const track of microphoneStream.getTracks()) {
-          track.stop();
+        if (microphoneStream) {
+          for (const track of microphoneStream.getTracks()) {
+            track.stop();
+          }
         }
         throw new Error("No media tracks available for recording.");
       }
@@ -312,10 +314,10 @@ export class ScreenRecorder {
 
   private async buildMixedAudioTracks(
     displayStream: MediaStream,
-    microphoneStream: MediaStream,
+    microphoneStream: MediaStream | null,
   ): Promise<MediaStreamTrack[]> {
     const displayAudioTracks = displayStream.getAudioTracks();
-    const microphoneAudioTracks = microphoneStream.getAudioTracks();
+    const microphoneAudioTracks = microphoneStream?.getAudioTracks() ?? [];
 
     if (displayAudioTracks.length === 0 && microphoneAudioTracks.length === 0) {
       return [];
