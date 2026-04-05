@@ -22,5 +22,9 @@ export default defineConfig([
     treeshake: true,
     splitting: false,
     minify: true,
+    outExtension({ format }) {
+      if (format === "iife") return { js: ".iife.js" };
+      return { js: ".js" };
+    },
   },
 ]);

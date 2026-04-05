@@ -12,7 +12,7 @@ import {
 } from "react";
 
 import { BugReporter } from "../core/BugReporter";
-import type { CaptureRegion } from "../core/ScreenshotCapturer";
+import type { CaptureRegion, ScreenshotPrivacyOptions } from "../core/ScreenshotCapturer";
 import {
   BreadcrumbCapture,
   ConsoleCapture,
@@ -48,6 +48,8 @@ type BugReporterProviderProps = {
   user?: UserIdentity;
   // SDK-06: Breadcrumb configuration
   breadcrumbs?: BreadcrumbConfig | false;
+  // SDK-09: Privacy options
+  privacy?: ScreenshotPrivacyOptions;
 };
 
 type ScreenshotAnnotationState = {
@@ -142,6 +144,7 @@ export function BugReporterProvider({
   maxDurationMs = DEFAULT_MAX_RECORDING_MS,
   user,
   breadcrumbs: breadcrumbConfig,
+  privacy,
 }: BugReporterProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -196,11 +199,15 @@ export function BugReporterProvider({
   }, []);
 
   // SDK-06: Breadcrumb capture
+  const memoizedBreadcrumbConfig = useMemo(() => breadcrumbConfig, [
+    breadcrumbConfig === false ? false : JSON.stringify(breadcrumbConfig)
+  ]);
+
   useEffect(() => {
-    if (breadcrumbConfig === false) return;
+    if (memoizedBreadcrumbConfig === false) return;
 
     const bc = new BreadcrumbCapture(
-      typeof breadcrumbConfig === "object" ? breadcrumbConfig : {},
+      typeof memoizedBreadcrumbConfig === "object" ? memoizedBreadcrumbConfig : {},
     );
     bc.start();
     breadcrumbCaptureRef.current = bc;
@@ -209,7 +216,7 @@ export function BugReporterProvider({
       bc.stop();
       breadcrumbCaptureRef.current = null;
     };
-  }, [breadcrumbConfig]);
+  }, [memoizedBreadcrumbConfig]);
 
   const availableProviders = useMemo(() => {
     return (["cloud", "linear", "jira"] as const).filter((provider) => Boolean(integrations[provider]));
@@ -334,6 +341,7 @@ export function BugReporterProvider({
         integration,
         maxDurationMs,
         onAutoStop: handleAutoStop,
+        privacy,
       });
       return;
     }
@@ -442,6 +450,7 @@ export function BugReporterProvider({
       integration,
       maxDurationMs,
       onAutoStop: handleAutoStop,
+      privacy,
     });
 
     if (!selectedProvider) {
@@ -762,8 +771,8 @@ export function BugReporterProvider({
       try {
         // For headless mode, we need artifacts. Create a minimal one if we don't have any.
         if (!reporter.getLastArtifacts()) {
-          // Trigger a minimal screenshot capture to create artifacts
-          if (captureMode !== "screenshot") {
+          // Trigger a minimal screenshot capture to create artifacts, but skip if mode is "none"
+          if (captureMode !== "screenshot" && captureMode !== "none") {
             await reporter.captureScreenshot().catch(() => {});
           }
         }

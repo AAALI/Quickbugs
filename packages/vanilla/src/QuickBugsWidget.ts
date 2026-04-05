@@ -50,6 +50,7 @@ export class QuickBugsWidget {
   private menuEl: HTMLElement | null = null;
   private modalEl: HTMLElement | null = null;
   private recordingEl: HTMLElement | null = null;
+  private menuCloseHandler: ((e: PointerEvent) => void) | null = null;
 
   constructor(options: QuickBugsInitOptions) {
     this.options = options;
@@ -144,6 +145,12 @@ export class QuickBugsWidget {
   destroy(): void {
     this.destroyed = true;
     this.stopElapsedTimer();
+    if (this.menuCloseHandler) {
+      window.removeEventListener("pointerdown", this.menuCloseHandler);
+      this.menuCloseHandler = null;
+    }
+    this.menuEl?.remove();
+    this.menuEl = null;
     if (this.consoleCapture && this.consoleCapture !== getQuickCaptureInstance()) this.consoleCapture.stop();
     this.breadcrumbCapture?.stop();
     if (this.reporter) { void this.reporter.dispose(); this.reporter = null; }
@@ -210,18 +217,25 @@ export class QuickBugsWidget {
     });
 
     // Close menu on outside click
-    const closeHandler = (e: PointerEvent) => {
+    this.menuCloseHandler = (e: PointerEvent) => {
       if (!this.menuEl?.contains(e.target as Node) && !this.root?.contains(e.target as Node)) {
         this.hideMenu();
-        window.removeEventListener("pointerdown", closeHandler);
       }
     };
-    setTimeout(() => window.addEventListener("pointerdown", closeHandler), 0);
+    setTimeout(() => {
+      if (this.menuCloseHandler) {
+        window.addEventListener("pointerdown", this.menuCloseHandler);
+      }
+    }, 0);
 
     (this.options.container ?? document.body).appendChild(this.menuEl);
   }
 
   private hideMenu() {
+    if (this.menuCloseHandler) {
+      window.removeEventListener("pointerdown", this.menuCloseHandler);
+      this.menuCloseHandler = null;
+    }
     this.menuEl?.remove();
     this.menuEl = null;
   }

@@ -1,6 +1,6 @@
 import { NetworkLogger, type NetworkLogEntry } from "@quick-bug-reporter/core";
 import { ScreenRecorder } from "./ScreenRecorder";
-import { CaptureRegion, ScreenshotCapturer } from "./ScreenshotCapturer";
+import { CaptureRegion, ScreenshotCapturer, type ScreenshotPrivacyOptions } from "./ScreenshotCapturer";
 import {
   BugSessionArtifacts,
   DEFAULT_MAX_RECORDING_MS,
@@ -12,6 +12,7 @@ type BugSessionOptions = {
   maxDurationMs?: number;
   screenRecorder?: ScreenRecorder;
   screenshotCapturer?: ScreenshotCapturer;
+  privacy?: ScreenshotPrivacyOptions;
   networkLogger?: NetworkLogger;
   onAutoStop?: (artifacts: BugSessionArtifacts) => void;
 };
@@ -33,7 +34,7 @@ export class BugSession {
   constructor(options: BugSessionOptions = {}) {
     this.maxDurationMs = options.maxDurationMs ?? DEFAULT_MAX_RECORDING_MS;
     this.screenRecorder = options.screenRecorder ?? new ScreenRecorder();
-    this.screenshotCapturer = options.screenshotCapturer ?? new ScreenshotCapturer();
+    this.screenshotCapturer = options.screenshotCapturer ?? (options.privacy ? new ScreenshotCapturer(options.privacy) : new ScreenshotCapturer());
     this.networkLogger = options.networkLogger ?? new NetworkLogger();
     this.onAutoStop = options.onAutoStop;
   }

@@ -1,4 +1,4 @@
-import { defineComponent, ref, computed, onMounted, onUnmounted, h, Teleport } from "vue";
+import { defineComponent, ref, computed, onMounted, onUnmounted, h, Teleport, watch, nextTick } from "vue";
 import { useQuickBugs } from "../composables/useQuickBugs";
 
 /**
@@ -20,6 +20,8 @@ export const FloatingBugButton = defineComponent({
     const ctx = useQuickBugs();
     const menuOpen = ref(false);
     const containerRef = ref<HTMLElement | null>(null);
+    const triggerButtonRef = ref<HTMLElement | null>(null);
+    const firstMenuItemRef = ref<HTMLElement | null>(null);
 
     const elapsed = computed(() => formatElapsed(ctx.elapsedMs.value));
     const maxElapsed = computed(() => formatElapsed(ctx.maxDurationMs));
@@ -41,6 +43,22 @@ export const FloatingBugButton = defineComponent({
 
     onMounted(() => { window.addEventListener("pointerdown", onPointerDown); });
     onUnmounted(() => { window.removeEventListener("pointerdown", onPointerDown); });
+
+    watch(menuOpen, (isOpen) => {
+      if (isOpen) {
+        nextTick(() => {
+          if (firstMenuItemRef.value && !disabled.value) {
+            firstMenuItemRef.value.focus();
+          }
+        });
+      } else {
+        nextTick(() => {
+          if (triggerButtonRef.value) {
+            triggerButtonRef.value.focus();
+          }
+        });
+      }
+    });
 
     /**
      * Capture a quick screenshot, close the action menu, and open the result modal after capture completes.
@@ -92,6 +110,7 @@ export const FloatingBugButton = defineComponent({
         if (menuOpen.value) {
           const menuItems = [
             h("button", {
+              ref: firstMenuItemRef,
               type: "button", disabled: disabled.value,
               onClick: () => void handleQuickScreenshot(),
               style: "display: flex; align-items: center; gap: 0.5rem; width: 100%; height: 2.5rem; padding: 0 0.75rem; border-radius: 0.75rem; border: none; background: transparent; cursor: pointer; font-size: 0.875rem; text-align: left; font-family: inherit;",
@@ -132,6 +151,7 @@ export const FloatingBugButton = defineComponent({
 
         children.push(
           h("button", {
+            ref: triggerButtonRef,
             type: "button",
             disabled: disabled.value,
             onClick: () => { menuOpen.value = !menuOpen.value; },
