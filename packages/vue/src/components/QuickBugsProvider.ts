@@ -99,6 +99,12 @@ export const QuickBugsProvider = defineComponent({
 
     const screenshotHighlightCount = computed(() => screenshotAnnotation.value.highlights.length);
 
+    /**
+     * Replace a stored object URL with one created from `blob`, revoking the previous URL if present.
+     *
+     * @param urlRef - A ref containing the current object URL string or `null` (e.g., `videoPreviewUrl` or `screenshotPreviewUrl`)
+     * @param blob - The Blob to create an object URL from, or `null` to clear the ref
+     */
     function revokeAndSet(urlRef: typeof videoPreviewUrl, blob: Blob | null) {
       if (urlRef.value) URL.revokeObjectURL(urlRef.value);
       urlRef.value = blob ? URL.createObjectURL(blob) : null;
@@ -134,6 +140,13 @@ export const QuickBugsProvider = defineComponent({
 
     onUnmounted(() => { breadcrumbCapture?.stop(); breadcrumbCapture = null; });
 
+    /**
+     * Apply artifacts from an automatic recording stop to the component state.
+     *
+     * Updates recording state, elapsed time, draft mode, stored video blob, and sets an informational auto-stop notice based on the stop reason.
+     *
+     * @param artifacts - The session artifacts containing `elapsedMs`, optional `videoBlob`, and `stopReason` (`"time_limit"` or `"screen_ended"`) used to update state
+     */
     function handleAutoStop(artifacts: BugSessionArtifacts) {
       isRecording.value = false;
       elapsedMs.value = artifacts.elapsedMs;
@@ -146,6 +159,13 @@ export const QuickBugsProvider = defineComponent({
       }
     }
 
+    /**
+     * Return the existing BugReporter or create and cache a new one for the current provider.
+     *
+     * If a reporter is created it is initialized with the provider's integration, `props.maxDurationMs`, and an `onAutoStop` handler; if no `selectedProvider` was set, this function will set it to the provider used.
+     *
+     * @returns The cached or newly created `BugReporter`, or `null` when no provider integration is available.
+     */
     function getOrCreateReporter(): BugReporter | null {
       if (reporter) return reporter;
       const provider = selectedProvider.value ?? availableProviders.value[0];
@@ -185,8 +205,18 @@ export const QuickBugsProvider = defineComponent({
       if (reporter) { void reporter.dispose(); reporter = null; }
     });
 
-    function resetMessages() { error.value = null; success.value = null; autoStopNotice.value = null; }
+    /**
+ * Clear any current UI messages related to reporting.
+ *
+ * Resets the `error`, `success`, and `autoStopNotice` refs to `null`.
+ */
+function resetMessages() { error.value = null; success.value = null; autoStopNotice.value = null; }
 
+    /**
+     * Clears the current capture draft and resets related UI and metadata state.
+     *
+     * Resets draft mode, clears stored video and screenshot blobs and annotations, and resets elapsed time. Also instructs the active reporter (if any) to clear its draft state.
+     */
     function clearDraft() {
       reporter?.clearDraft();
       draftMode.value = null;
@@ -196,9 +226,22 @@ export const QuickBugsProvider = defineComponent({
       elapsedMs.value = 0;
     }
 
-    function openModal() { isOpen.value = true; }
-    function closeModal() { isOpen.value = false; }
+    /**
+ * Opens the QuickBugs modal.
+ */
+function openModal() { isOpen.value = true; }
+    /**
+ * Closes the QuickBugs modal.
+ */
+function closeModal() { isOpen.value = false; }
 
+    /**
+     * Starts a video recording session with the configured bug reporter.
+     *
+     * Clears existing messages and any current draft before attempting to start. On success sets `elapsedMs` to 0, `isRecording` to `true`, and `draftMode` to `"video"`. On failure sets `isRecording` to `false` and populates `error`.
+     *
+     * @returns `true` if recording started successfully, `false` otherwise. Returns `false` and sets `error` when no bug tracker integration is configured or when starting fails.
+     */
     async function startRecording(): Promise<boolean> {
       const r = getOrCreateReporter();
       if (!r) { error.value = "No bug tracker integration is configured."; return false; }
@@ -208,6 +251,15 @@ export const QuickBugsProvider = defineComponent({
       } catch (e) { isRecording.value = false; error.value = toErrorMessage(e); return false; }
     }
 
+    /**
+     * Stops an in-progress recording and stores any resulting video artifact.
+     *
+     * On success updates `elapsedMs` from the reporter, sets `isRecording` to `false`,
+     * and if a video blob is present sets `draftMode` to `"video"` and stores `videoBlob`.
+     * On failure sets the `error` ref with a human-readable message.
+     *
+     * @returns `true` if a video blob was produced and stored, `false` otherwise (including on error)
+     */
     async function stopRecording(): Promise<boolean> {
       if (!reporter) return false;
       try {
@@ -219,6 +271,13 @@ export const QuickBugsProvider = defineComponent({
       } catch (e) { error.value = toErrorMessage(e); return false; }
     }
 
+    /**
+     * Captures a quick screenshot and prepares it as the current draft evidence.
+     *
+     * Stops an active recording if present, resets messages and any existing draft, and sets an in-progress capture flag while performing the screenshot capture. On success, stores the captured image as the screenshot draft, initializes screenshot annotation state, updates elapsed time, clears any auto-stop notice, and clears the in-progress flag. On failure, sets the component `error` state and clears the in-progress flag.
+     *
+     * @returns `true` if a screenshot was captured and stored as the draft, `false` otherwise.
+     */
     async function captureQuickScreenshot(): Promise<boolean> {
       const r = getOrCreateReporter();
       if (!r) { error.value = "No bug tracker integration is configured."; return false; }
@@ -235,27 +294,73 @@ export const QuickBugsProvider = defineComponent({
       finally { isCapturingScreenshot.value = false; }
     }
 
+    /**
+     * Begins interactive region selection for screenshot annotation.
+     *
+     * Clears any existing messages and enables region-selection mode.
+     *
+     * If a screen recording is currently active, this is a no-op.
+     */
     function startRegionSelection() {
       if (isRecording.value) return;
       resetMessages(); isSelectingRegion.value = true;
     }
 
-    function cancelRegionSelection() { isSelectingRegion.value = false; }
+    /**
+ * Cancels any active region selection mode.
+ *
+ * Exits region selection by clearing the internal selection flag so the UI stops treating the screen as being selected.
+ */
+function cancelRegionSelection() { isSelectingRegion.value = false; }
 
+    /**
+     * Collects the current console logs, JavaScript errors, breadcrumb entries, and current user identity for inclusion with a report submission.
+     *
+     * @returns An object containing:
+     *  - `consoleLogs` — array of captured console log entries
+     *  - `jsErrors` — array of captured JavaScript error records
+     *  - `breadcrumbs` — array of `BreadcrumbEntry` items
+     *  - `user` — the current user identity (may be `null` or `undefined`)
+     */
     function collectSubmissionExtras() {
       const { consoleLogs, jsErrors } = consoleCapture?.snapshot() ?? { consoleLogs: [], jsErrors: [] };
       const breadcrumbs: BreadcrumbEntry[] = breadcrumbCapture?.snapshot() ?? [];
       return { consoleLogs, jsErrors, breadcrumbs, user: currentUser };
     }
 
+    /**
+     * Replace the current screenshot annotation state.
+     *
+     * @param annotation - The new screenshot annotation state to apply
+     */
     function updateScreenshotAnnotation(annotation: ScreenshotAnnotationState) {
       screenshotAnnotation.value = annotation;
     }
 
+    /**
+     * Set the currently selected bug tracker provider.
+     *
+     * @param provider - The provider to select
+     */
     function setSelectedProvider(provider: BugTrackerProvider) {
       selectedProvider.value = provider;
     }
 
+    /**
+     * Submits the current draft evidence and structured report fields to the selected bug tracker.
+     *
+     * Builds a Markdown description from the provided structured fields, attaches the appropriate
+     * screenshot (including annotated version when present), includes collected extras (console logs,
+     * JS errors, breadcrumbs, and user), and uploads via the active reporter integration.
+     *
+     * @param title - Short title for the report
+     * @param structuredFields - Structured text sections to include in the report
+     * @param structuredFields.stepsToReproduce - Steps to reproduce the issue
+     * @param structuredFields.expectedResult - The expected behavior
+     * @param structuredFields.actualResult - The observed behavior
+     * @param structuredFields.additionalContext - Any additional context or notes
+     * @returns The submission result object when submission succeeds, `null` otherwise.
+     */
     async function submitReport(
       title: string,
       structuredFields: { stepsToReproduce: string; expectedResult: string; actualResult: string; additionalContext: string }
@@ -306,6 +411,12 @@ export const QuickBugsProvider = defineComponent({
       finally { isSubmitting.value = false; submissionProgress.value = null; }
     }
 
+    /**
+     * Captures evidence (optionally a headless screenshot) and submits a report using the configured reporter.
+     *
+     * @param options - Headless capture and submission options including `title`, optional `description`, and optional `captureMode` (e.g., `"screenshot"` or `"none"`)
+     * @returns A `HeadlessCaptureResult` containing `success`, the created `reportId` when successful (empty string on failure), and `externalIssueUrl` when the provider returned an external URL (or `null`)
+     */
     async function captureAndSubmit(options: HeadlessCaptureOptions): Promise<HeadlessCaptureResult> {
       const r = getOrCreateReporter();
       if (!r) return { success: false, reportId: "", externalIssueUrl: null };

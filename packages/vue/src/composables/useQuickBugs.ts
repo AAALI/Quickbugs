@@ -67,6 +67,12 @@ export type QuickBugsContext = {
 
 export const QuickBugsKey: InjectionKey<QuickBugsContext> = Symbol("QuickBugs");
 
+/**
+ * Retrieves the QuickBugs context from the current Vue injection scope.
+ *
+ * @returns The injected `QuickBugsContext`.
+ * @throws Error if called outside a `<QuickBugsProvider>`.
+ */
 export function useQuickBugs(): QuickBugsContext {
   const context = inject(QuickBugsKey);
   if (!context) {

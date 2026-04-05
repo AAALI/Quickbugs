@@ -1,6 +1,12 @@
 import { defineComponent, ref, computed, onMounted, onUnmounted, h, Teleport, watch, nextTick } from "vue";
 import { useQuickBugs } from "../composables/useQuickBugs";
 
+/**
+ * Format a duration in milliseconds as a zero-padded `MM:SS` string.
+ *
+ * @param ms - Duration in milliseconds; negative values are treated as zero
+ * @returns A `MM:SS` string with minutes and seconds zero-padded to two digits
+ */
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -21,6 +27,13 @@ export const FloatingBugButton = defineComponent({
     const maxElapsed = computed(() => formatElapsed(ctx.maxDurationMs));
     const disabled = computed(() => ctx.isCapturingScreenshot.value || ctx.isSelectingRegion.value);
 
+    /**
+     * Closes the open menu if the pointer event's target is outside the component container.
+     *
+     * Ignores the event if the menu is not open or if the event target is not a `Node`.
+     *
+     * @param event - The pointer event to inspect for an outside click/tap target
+     */
     function onPointerDown(event: PointerEvent) {
       if (!menuOpen.value) return;
       const target = event.target;
@@ -47,17 +60,26 @@ export const FloatingBugButton = defineComponent({
       }
     });
 
+    /**
+     * Capture a quick screenshot, close the action menu, and open the result modal after capture completes.
+     */
     async function handleQuickScreenshot() {
       menuOpen.value = false;
       await ctx.captureQuickScreenshot();
       ctx.openModal();
     }
 
+    /**
+     * Closes the options menu and starts recording.
+     */
     async function handleStartRecording() {
       menuOpen.value = false;
       await ctx.startRecording();
     }
 
+    /**
+     * Stops an active recording and opens the review modal if stopping succeeds.
+     */
     async function handleStopRecording() {
       const ok = await ctx.stopRecording();
       if (ok) ctx.openModal();

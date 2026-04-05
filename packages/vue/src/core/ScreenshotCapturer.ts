@@ -10,10 +10,23 @@ type CaptureAttempt = {
   sanitizeColorFunctions: boolean;
 };
 
+/**
+ * Replace modern CSS color functions with a stable RGB fallback.
+ *
+ * @param value - CSS text or value that may contain modern color functions like `lab()`, `lch()`, `oklab()`, `oklch()`, or `color(...)`
+ * @returns The input string with any matched modern color functions replaced by the configured fallback color
+ */
 function replaceUnsupportedColorFunctions(value: string): string {
   return value.replace(UNSUPPORTED_COLOR_FUNCTION_PATTERN, COLOR_FALLBACK_VALUE);
 }
 
+/**
+ * Ensure a cloned document's root layout is not height- or overflow-clamped so it can expand to fit content.
+ *
+ * Applies `height: auto !important` and `overflow: visible !important` to the cloned document's `html` and `body` elements and appends a `<style>` element with the same rules to the cloned document head. If `documentElement` or `body` are missing, those elements are skipped.
+ *
+ * @param clonedDoc - The cloned `Document` whose layout should be relaxed
+ */
 function unclampClonedLayout(clonedDoc: Document): void {
   for (const el of [clonedDoc.documentElement, clonedDoc.body]) {
     if (!el) continue;
@@ -25,6 +38,12 @@ function unclampClonedLayout(clonedDoc: Document): void {
   clonedDoc.head.appendChild(overrideStyle);
 }
 
+/**
+ * Replaces modern CSS color functions in all <style> elements and inline style attributes
+ * within the provided cloned document with a fallback RGB value.
+ *
+ * @param clonedDocument - The cloned `Document` whose stylesheet text and inline `style` attributes will be sanitized
+ */
 function sanitizeCloneForModernColors(clonedDocument: Document): void {
   for (const styleElement of clonedDocument.querySelectorAll("style")) {
     if (styleElement.textContent) {
@@ -37,6 +56,12 @@ function sanitizeCloneForModernColors(clonedDocument: Document): void {
   }
 }
 
+/**
+ * Converts an HTMLCanvasElement into a PNG image Blob.
+ *
+ * @returns A PNG `Blob` (MIME type `image/png`) containing the canvas image.
+ * @throws Error if the browser fails to generate the PNG blob.
+ */
 async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
   const blob = await new Promise<Blob | null>((resolve) => { canvas.toBlob(resolve, "image/png", 1); });
   if (!blob) throw new Error("Failed to generate screenshot image.");
@@ -55,6 +80,14 @@ export type ScreenshotPrivacyOptions = {
   blockSelectors?: string[];
 };
 
+/**
+ * Applies privacy transformations to elements within a cloned document based on selector lists.
+ *
+ * @param doc - The cloned `Document` whose elements will be modified.
+ * @param privacy - Privacy options that control modifications:
+ *   - `maskSelectors`: selectors whose matched elements receive `filter: blur(8px) !important`.
+ *   - `blockSelectors`: selectors whose matched elements are given a gray background (`#808080 !important`), made text-transparent (`color: transparent !important`), and have their `innerHTML` cleared.
+ */
 function applyPrivacyToClone(doc: Document, privacy: ScreenshotPrivacyOptions): void {
   if (privacy.maskSelectors) {
     for (const selector of privacy.maskSelectors) {

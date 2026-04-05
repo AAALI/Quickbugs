@@ -6,15 +6,11 @@ const MAX_ARG_LENGTH = 1000;
 let quickCaptureInstance: ConsoleCapture | null = null;
 
 /**
- * Start console + error capture immediately, before React renders.
- * Call at the very top of your app entry file (main.tsx / index.tsx).
+ * Create and start a singleton ConsoleCapture to capture console output and JavaScript errors early in app startup.
  *
- * ```ts
- * import { quickCapture } from 'quick-bug-reporter-core'
- * quickCapture()
- * ```
+ * Subsequent calls return the same started instance.
  *
- * BugReporterProvider will detect and reuse this instance.
+ * @returns The singleton ConsoleCapture instance that was created and started
  */
 export function quickCapture(): ConsoleCapture {
   if (quickCaptureInstance) return quickCaptureInstance;
@@ -24,7 +20,9 @@ export function quickCapture(): ConsoleCapture {
 }
 
 /**
- * Returns the existing quickCapture instance, or null if not started.
+ * Get the current boot-time ConsoleCapture singleton instance.
+ *
+ * @returns The active `ConsoleCapture` instance, or `null` if none has been started.
  */
 export function getQuickCaptureInstance(): ConsoleCapture | null {
   return quickCaptureInstance;

@@ -204,6 +204,19 @@ export function formatJsErrors(errors: CapturedJsError[]): string {
     .join("\n\n");
 }
 
+/**
+ * Produce a human-readable text representation of network request/response entries.
+ *
+ * Each log entry becomes a primary line in the format:
+ *   [timestamp] METHOD url -> STATUS (durationMsms)
+ * If present, `requestBody` and `responseBody` are appended on separate indented lines:
+ *   Request Body: {requestBody}
+ *   Response Body: {responseBody}
+ * Empty input yields the literal "No network requests captured."
+ *
+ * @param logs - Array of network log entries to format
+ * @returns A single string containing all formatted entries separated by newlines, or the empty-message when `logs` is empty
+ */
 export function formatNetworkLogs(logs: NetworkLogEntry[]): string {
   if (logs.length === 0) {
     return "No network requests captured.";

@@ -7,11 +7,26 @@ const COLOR_FALLBACK = "rgb(17, 24, 39)";
 export type CaptureRegion = { x: number; y: number; width: number; height: number };
 export type ScreenshotPrivacyOptions = { maskSelectors?: string[]; blockSelectors?: string[] };
 
+/**
+ * Applies privacy transformations to a document based on the provided selectors.
+ *
+ * Applies a blur to elements matching `maskSelectors` and replaces the visual appearance and clears content of elements matching `blockSelectors` to prevent sensitive data from appearing.
+ *
+ * @param doc - The Document to modify (typically a cloned document used for rendering).
+ * @param p - Privacy options. `maskSelectors` blurs matched elements; `blockSelectors` sets a neutral background, makes text transparent, and clears inner HTML of matched elements.
+ */
 function applyPrivacy(doc: Document, p: ScreenshotPrivacyOptions): void {
   if (p.maskSelectors) for (const s of p.maskSelectors) for (const el of doc.querySelectorAll<HTMLElement>(s)) el.style.setProperty("filter", "blur(8px)", "important");
   if (p.blockSelectors) for (const s of p.blockSelectors) for (const el of doc.querySelectorAll<HTMLElement>(s)) { el.style.setProperty("background", "#808080", "important"); el.style.setProperty("color", "transparent", "important"); el.innerHTML = ""; }
 }
 
+/**
+ * Generate a PNG image from a canvas.
+ *
+ * @param canvas - The source HTMLCanvasElement to encode
+ * @returns A Blob containing the canvas encoded as PNG image data
+ * @throws Error if the canvas could not be converted to a PNG
+ */
 async function canvasToPng(canvas: HTMLCanvasElement): Promise<Blob> {
   const blob = await new Promise<Blob | null>((r) => canvas.toBlob(r, "image/png", 1));
   if (!blob) throw new Error("Failed to generate screenshot image.");

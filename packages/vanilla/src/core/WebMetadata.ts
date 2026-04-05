@@ -1,5 +1,12 @@
 import type { BugClientMetadata } from "@quick-bug-reporter/core";
 
+/**
+ * Collects client/browser environment information used for bug metadata.
+ *
+ * Gathers locale, language, languages, platform, referrer, preferred color scheme, timezone, viewport, screen, device, and network connection details from browser APIs and returns them as a single metadata object. When run outside a browser or when specific APIs are unavailable, fields are set to `null`, empty arrays, or sensible defaults (e.g., `colorScheme: "unknown"`).
+ *
+ * @returns An object containing `locale`, `language`, `languages`, `platform`, `referrer`, `colorScheme`, `timezone`, `viewport`, `screen`, `device`, and `connection` fields populated from the browser environment or set to `null`/defaults when not available.
+ */
 export function collectClientEnvironmentMetadata(): Omit<BugClientMetadata, "captureMode" | "capture"> {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
     return {

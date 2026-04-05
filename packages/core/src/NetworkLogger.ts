@@ -11,6 +11,13 @@ const DEFAULT_MAX_BODY_SIZE = 10_000;
 const DEFAULT_REDACT_KEYS = ["password", "token", "authorization"];
 const AUTH_PATH_PATTERNS = ["/auth/", "/login", "/token"];
 
+/**
+ * Determine the HTTP method to use for a fetch request.
+ *
+ * @param input - The original request input (may be a `Request`, `URL`, or other value) used to derive a fallback method.
+ * @param init - Optional init object whose `method` property, if present, overrides the method from `input`.
+ * @returns The resolved HTTP method string (for example, `"GET"` or `"POST"`).
+ */
 function resolveMethod(input: RequestInfo | URL, init?: RequestInit): string {
   if (init?.method) {
     return init.method;
@@ -39,6 +46,11 @@ function resolveUrl(input: RequestInfo | URL): string {
   return String(input);
 }
 
+/**
+ * Returns a millisecond timestamp suitable for measuring elapsed time.
+ *
+ * @returns A number of milliseconds usable to compute durations. When available the value is from `performance.now()` (high-resolution, relative to the page/navigation start); otherwise it is from `Date.now()` (milliseconds since the UNIX epoch).
+ */
 function nowMs(): number {
   if (typeof performance !== "undefined" && typeof performance.now === "function") {
     return performance.now();
@@ -47,11 +59,28 @@ function nowMs(): number {
   return Date.now();
 }
 
+/**
+ * Determines whether a URL matches known authentication-related path patterns.
+ *
+ * Performs a case-insensitive substring check against configured authentication path patterns.
+ *
+ * @returns `true` if the URL contains any authentication path pattern, `false` otherwise.
+ */
 function isAuthUrl(url: string): boolean {
   const lower = url.toLowerCase();
   return AUTH_PATH_PATTERNS.some((p) => lower.includes(p));
 }
 
+/**
+ * Redacts values in a JSON string for object properties whose names match any provided substrings.
+ *
+ * Parses `text` as JSON, replaces values of properties whose key name contains any entry from `keys`
+ * (case-insensitive substring match) with `"[REDACTED]"`, and returns the resulting JSON string.
+ *
+ * @param text - The JSON string to redact
+ * @param keys - Substring keys used to identify property names to redact (case-insensitive)
+ * @returns The JSON string with matching values replaced by `"[REDACTED]"`, or the original `text` if `keys` is empty or parsing/stringification fails
+ */
 function redactJson(text: string, keys: string[]): string {
   if (keys.length === 0) return text;
   try {
@@ -63,6 +92,14 @@ function redactJson(text: string, keys: string[]): string {
   }
 }
 
+/**
+ * Recursively redacts properties whose key names contain any of the provided substrings.
+ *
+ * Walks objects and arrays in-place, replacing a property value with `"[REDACTED]"` when the property's key contains (case-insensitive substring match) any entry from `keys`. Non-object values are ignored.
+ *
+ * @param obj - The value to traverse and redact; only plain objects and arrays are modified in-place.
+ * @param keys - Substring keys to match against object property names (case-insensitive).
+ */
 function redactObject(obj: unknown, keys: string[]): void {
   if (obj === null || typeof obj !== "object") return;
   if (Array.isArray(obj)) {
@@ -78,10 +115,23 @@ function redactObject(obj: unknown, keys: string[]): void {
   }
 }
 
+/**
+ * Truncates a string to a maximum length and appends an indicator when truncated.
+ *
+ * @param text - The input string to truncate
+ * @param max - Maximum allowed length of the returned string
+ * @returns The original `text` if its length is less than or equal to `max`, otherwise the first `max` characters followed by "…[truncated]"
+ */
 function truncate(text: string, max: number): string {
   return text.length > max ? text.slice(0, max) + "…[truncated]" : text;
 }
 
+/**
+ * Determines whether an HTTP method typically includes a request body.
+ *
+ * @param method - The HTTP method name
+ * @returns `true` if `method` is `POST`, `PUT`, or `PATCH` (case-insensitive), `false` otherwise.
+ */
 function hasBody(method: string): boolean {
   const m = method.toUpperCase();
   return m === "POST" || m === "PUT" || m === "PATCH";

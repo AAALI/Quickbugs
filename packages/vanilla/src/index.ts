@@ -2,25 +2,41 @@ import { QuickBugsWidget, type QuickBugsInitOptions, type QuickBugsSubmitOptions
 
 let instance: QuickBugsWidget | null = null;
 
-/** Initialize QuickBugs and render the floating button. */
+/**
+ * Create a new QuickBugs widget and render its floating button, replacing any existing instance.
+ *
+ * @param options - Configuration options for the QuickBugs widget
+ * @returns The created QuickBugsWidget instance
+ */
 export function init(options: QuickBugsInitOptions): QuickBugsWidget {
   if (instance) instance.destroy();
   instance = new QuickBugsWidget(options);
   return instance;
 }
 
-/** Show the bug reporter menu/modal. */
+/**
+ * Opens the QuickBugs reporter UI.
+ *
+ * If the widget has not been initialized, this function does nothing.
+ */
 export function showReporter(): void {
   instance?.showReporter();
 }
 
-/** Programmatically submit a bug report (headless). */
+/**
+ * Submits a bug report using the initialized widget without opening the reporter UI.
+ *
+ * @param options - Submission options controlling report contents and metadata
+ * @returns An object with `success` indicating whether submission occurred, `reportId` set to the created report's ID when successful or an empty string otherwise, and `externalIssueUrl` containing an external tracker URL or `null`.
+ */
 export async function submit(options: QuickBugsSubmitOptions): Promise<{ success: boolean; reportId: string; externalIssueUrl: string | null }> {
   if (!instance) return { success: false, reportId: "", externalIssueUrl: null };
   return instance.submit(options);
 }
 
-/** Destroy the widget and clean up. */
+/**
+ * Destroys the module-level QuickBugsWidget instance and clears the singleton reference.
+ */
 export function destroy(): void {
   instance?.destroy();
   instance = null;

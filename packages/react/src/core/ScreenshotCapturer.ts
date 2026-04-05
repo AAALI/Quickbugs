@@ -76,6 +76,14 @@ export type ScreenshotPrivacyOptions = {
   blockSelectors?: string[];
 };
 
+/**
+ * Apply privacy transformations to a cloned document by blurring or replacing matched elements.
+ *
+ * @param doc - The cloned `Document` to mutate.
+ * @param privacy - Privacy options controlling transformations:
+ *   - `maskSelectors`: selectors whose matched elements receive `filter: blur(8px) !important`.
+ *   - `blockSelectors`: selectors whose matched elements are replaced with a grey placeholder (`background: #808080 !important`), have `color: transparent !important`, and have their `innerHTML` cleared.
+ */
 function applyPrivacyToClone(doc: Document, privacy: ScreenshotPrivacyOptions): void {
   // Mask: blur matched elements
   if (privacy.maskSelectors) {

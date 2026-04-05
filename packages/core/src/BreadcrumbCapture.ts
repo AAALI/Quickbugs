@@ -10,6 +10,16 @@ export type BreadcrumbOptions = {
 const DEFAULT_MAX_ENTRIES = 50;
 const MAX_TEXT_LENGTH = 50;
 
+/**
+ * Normalizes whitespace in a string and truncates it to a maximum length.
+ *
+ * The returned string has leading and trailing whitespace removed and any internal runs
+ * of whitespace collapsed to a single space. If the resulting string exceeds
+ * `MAX_TEXT_LENGTH`, it is truncated to the first `MAX_TEXT_LENGTH` characters
+ * and an ellipsis (`…`) is appended.
+ *
+ * @returns The normalized (and possibly truncated) string.
+ */
 function truncateText(text: string): string {
   const trimmed = text.trim().replace(/\s+/g, " ");
   return trimmed.length > MAX_TEXT_LENGTH ? trimmed.slice(0, MAX_TEXT_LENGTH) + "…" : trimmed;
