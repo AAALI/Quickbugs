@@ -8,4 +8,6 @@ dist/
 .npmrc
 .turbo/
 .parked/
+.vscode/
 _platform-export/
+package-lock.json

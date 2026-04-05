@@ -1,7 +1,7 @@
 {
   "name": "quick-bug-reporter",
   "private": true,
-  "description": "Bug reporter SDK monorepo — web (React) + mobile (React Native)",
+  "description": "Bug reporter SDK monorepo — web (React, Vue, Vanilla)",
   "author": "Ali Abdulkadir Ali",
   "license": "MIT",
   "scripts": {

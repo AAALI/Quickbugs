@@ -1,7 +1,7 @@
 packages:
   - packages/*
   - apps/*
-  - test-app-tw3
+  - test-app-tailwind3
   - test-app-cloud
 
 ignoredBuiltDependencies:
