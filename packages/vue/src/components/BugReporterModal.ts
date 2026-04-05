@@ -2,6 +2,12 @@ import { defineComponent, ref, computed, h, Teleport } from "vue";
 import type { BugTrackerProvider } from "@quick-bug-reporter/core";
 import { useQuickBugs } from "../composables/useQuickBugs";
 
+/**
+ * Format a duration in milliseconds as a zero-padded `MM:SS` string.
+ *
+ * @param ms - Duration in milliseconds (negative values are treated as zero)
+ * @returns The formatted duration as `MM:SS`, where minutes and seconds are zero-padded to two digits
+ */
 function formatElapsed(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   const minutes = Math.floor(totalSeconds / 60).toString().padStart(2, "0");
@@ -9,6 +15,12 @@ function formatElapsed(ms: number): string {
   return `${minutes}:${seconds}`;
 }
 
+/**
+ * Return a user-facing label for a bug tracker provider identifier.
+ *
+ * @param provider - Provider identifier to map to a display name
+ * @returns A human-readable provider name: `"Linear"` for `"linear"`, `"Jira"` for `"jira"`, `"QuickBugs Cloud"` for `"cloud"`, otherwise the original `provider` value
+ */
 function providerLabel(provider: BugTrackerProvider): string {
   if (provider === "linear") return "Linear";
   if (provider === "jira") return "Jira";
@@ -60,6 +72,11 @@ export const BugReporterModal = defineComponent({
       !!ctx.selectedProvider.value && ctx.hasDraft.value && title.value.trim().length > 0 && !isOverLimit.value
     );
 
+    /**
+     * Submit the current bug report draft to the configured provider and, if submission succeeds, clear all form fields and return the UI to the review step.
+     *
+     * @param e - The form submission event
+     */
     async function handleSubmit(e: Event) {
       e.preventDefault();
       const result = await ctx.submitReport(title.value, {
@@ -72,9 +89,22 @@ export const BugReporterModal = defineComponent({
       }
     }
 
-    function handleClose() { ctx.closeModal(); step.value = "review"; }
-    function handleDiscard() { ctx.clearDraft(); ctx.resetMessages(); ctx.closeModal(); step.value = "review"; }
+    /**
+ * Closes the bug reporter modal and resets the flow to the initial "review" step.
+ */
+function handleClose() { ctx.closeModal(); step.value = "review"; }
+    /**
+ * Discards the current capture draft, clears status messages, closes the bug reporter modal, and resets the flow to the review step.
+ */
+function handleDiscard() { ctx.clearDraft(); ctx.resetMessages(); ctx.closeModal(); step.value = "review"; }
 
+    /**
+     * Create a tab button that switches the active bug-detail tab.
+     *
+     * @param tab - Identifier of the tab to activate (`"steps"`, `"expected"`, `"actual"`, or `"context"`)
+     * @param label - Visible text shown on the button
+     * @returns A VNode for a button element that activates the given tab when clicked and visually indicates the active state
+     */
     function tabBtn(tab: "steps" | "expected" | "actual" | "context", label: string) {
       const active = activeTab.value === tab;
       return h("button", {
@@ -83,6 +113,11 @@ export const BugReporterModal = defineComponent({
       }, label);
     }
 
+    /**
+     * Render the textarea for the currently selected bug-detail tab.
+     *
+     * @returns A textarea VNode bound to the active tab's text ref, with the matching placeholder and an input handler that updates that ref.
+     */
     function currentTextarea() {
       const map = { steps: stepsToReproduce, expected: expectedResult, actual: actualResult, context: additionalContext };
       const placeholders = { steps: "1. Go to...", expected: "What should happen...", actual: "What actually happened...", context: "Any extra info..." };
@@ -111,6 +146,15 @@ export const BugReporterModal = defineComponent({
       );
     };
 
+    /**
+     * Builds the VNode array for the "Review capture" step of the bug reporter modal.
+     *
+     * The returned nodes render the header, capture preview or placeholder (depending on whether
+     * a screenshot or video draft exists), any error message, and the footer action buttons
+     * ("Discard draft" and "Next →").
+     *
+     * @returns An array of VNodes representing the Review capture UI (header, preview/controls, status, and footer actions)
+     */
     function renderReview(): ReturnType<typeof h>[] {
       const nodes: ReturnType<typeof h>[] = [
         h("div", {}, [
@@ -167,6 +211,16 @@ export const BugReporterModal = defineComponent({
       return nodes;
     }
 
+    /**
+     * Builds the virtual DOM nodes for the "Add context" (step 2) view of the bug reporter modal.
+     *
+     * The returned nodes include a title and subtitle, an input for the bug title, a tabbed
+     * "Bug Details" textarea area with a live character counter, a provider selection dropdown,
+     * a capture summary (screenshot/video/none), optional status notices (auto-stop, error, success),
+     * and footer actions for navigating back or submitting the report.
+     *
+     * @returns An array of VNodes composing the "Add context" UI for rendering inside the modal
+     */
     function renderContext(): ReturnType<typeof h>[] {
       const nodes: ReturnType<typeof h>[] = [
         h("div", {}, [

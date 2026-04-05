@@ -206,6 +206,13 @@ const CSS = `
 
 let injected = false;
 
+/**
+ * Injects the package's CSS into the document head if it has not already been injected.
+ *
+ * This operation is idempotent: it does nothing when running outside a DOM environment or when a style element
+ * with the module's `STYLE_ID` is already present. When performed, it creates a `<style>` element, sets its
+ * `id` to `STYLE_ID`, assigns the module CSS, and appends it to `document.head`.
+ */
 export function injectStyles(): void {
   if (injected) return;
   if (typeof document === "undefined") return;

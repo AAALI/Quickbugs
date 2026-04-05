@@ -11,6 +11,11 @@ type DisplayMediaStreamOptionsWithHints = DisplayMediaStreamOptions & {
 
 const MIME_TYPES = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
 
+/**
+ * Selects the first supported MIME type from the preferred list for use with MediaRecorder.
+ *
+ * @returns The first MIME type string that `MediaRecorder.isTypeSupported` accepts, or `undefined` if `MediaRecorder` is unavailable or no preferred types are supported.
+ */
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   return MIME_TYPES.find((mime) => MediaRecorder.isTypeSupported(mime));

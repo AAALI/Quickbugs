@@ -121,6 +121,20 @@ function getProviderLabel(provider: BugTrackerProvider): string {
   return provider;
 }
 
+/**
+ * Provides the BugReporter context and manages capture, draft, and submission lifecycle for its children.
+ *
+ * This component initializes and maintains reporter, console, and breadcrumb capture instances; exposes
+ * actions for recording, screenshot capture/annotation, and submission; and renders the context provider
+ * and a region selector when region selection is active.
+ *
+ * @param props.integrations - Mapping of bug tracker integrations available to the provider.
+ * @param props.defaultProvider - Optional provider to select by default when available.
+ * @param props.maxDurationMs - Maximum recording duration in milliseconds.
+ * @param props.user - Optional user identity that will be included with submissions.
+ * @param props.breadcrumbs - Breadcrumb capture configuration, or `false` to disable breadcrumb capture.
+ * @returns The React element tree wrapped with BugReporterContext.Provider (renders children and an active RegionSelector when selecting a region).
+ */
 export function BugReporterProvider({
   children,
   integrations,

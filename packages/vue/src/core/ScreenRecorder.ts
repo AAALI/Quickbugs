@@ -11,6 +11,21 @@ type DisplayMediaStreamOptionsWithHints = DisplayMediaStreamOptions & {
 
 const MIME_TYPES = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"];
 
+/**
+ * Convert an unknown recorder startup failure into a user-friendly Error.
+ *
+ * Maps specific DOMException `name` values to clearer messages (e.g. permission,
+ * cancellation, not-found, or not-readable cases). If given an `Error` it is
+ * returned unchanged; otherwise a generic failure `Error` is returned.
+ *
+ * @param error - The error or failure value produced during recorder setup
+ * @returns An `Error` with a user-facing message. For the following `DOMException` names the message will be:
+ * - `NotAllowedError` or `SecurityError`: "Screen or microphone permission was denied."
+ * - `AbortError`: "Recording setup was cancelled before it started."
+ * - `NotFoundError`: "No screen/tab or microphone source was found."
+ * - `NotReadableError`: "Unable to access the selected screen/tab or microphone."
+ * For other `DOMException` instances the exception's message is used if available. If `error` is already an `Error` it is returned; otherwise a generic "Failed to start recording." error is returned.
+ */
 function mapRecorderError(error: unknown): Error {
   if (error instanceof DOMException) {
     if (error.name === "NotAllowedError" || error.name === "SecurityError") {
@@ -31,6 +46,11 @@ function mapRecorderError(error: unknown): Error {
   return new Error("Failed to start recording.");
 }
 
+/**
+ * Selects the first supported MIME type for MediaRecorder from the preferred list.
+ *
+ * @returns The first MIME type from `MIME_TYPES` that `MediaRecorder.isTypeSupported` accepts, or `undefined` if `MediaRecorder` is unavailable or no listed type is supported.
+ */
 function pickMimeType(): string | undefined {
   if (typeof MediaRecorder === "undefined") return undefined;
   return MIME_TYPES.find((mime) => MediaRecorder.isTypeSupported(mime));
