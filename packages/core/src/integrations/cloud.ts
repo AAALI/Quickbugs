@@ -8,6 +8,17 @@ import {
   formatNetworkLogs,
 } from "../types";
 
+// SDK-05: Custom metadata hook type
+export type MetadataHook = () => string | number | boolean | null;
+
+// SDK-09: Privacy controls
+export type PrivacyOptions = {
+  maskSelectors?: string[];
+  blockSelectors?: string[];
+  redactLogKeys?: string[];
+  urlDepth?: number;
+};
+
 export type CloudIntegrationOptions = {
   projectKey: string;
   ingestUrl?: string;
@@ -15,9 +26,20 @@ export type CloudIntegrationOptions = {
   appVersion?: string;
   environment?: string;
   fetchImpl?: typeof fetch;
+  // SDK-04: Request/response body capture
+  captureRequestBodies?: boolean;
+  captureResponseBodies?: boolean;
+  maxBodySize?: number;
+  redactBodyKeys?: string[];
+  // SDK-05: Custom metadata hooks
+  metadata?: Record<string, MetadataHook>;
+  // SDK-09: Privacy controls
+  privacy?: PrivacyOptions;
 };
 
 const DEFAULT_INGEST_ENDPOINT = 'https://quickbugs.com/api/ingest';
+const MAX_METADATA_KEYS = 20;
+const MAX_METADATA_BYTES = 500;
 
 const noop: SubmitProgressCallback = () => {};
 
@@ -29,6 +51,14 @@ export class CloudIntegration implements BugReporterIntegration {
   private appVersion?: string;
   private environment?: string;
   private fetchFn: typeof fetch;
+  private metadataHooks: Record<string, MetadataHook>;
+  private privacy: PrivacyOptions;
+
+  // Expose options for NetworkLogger to read
+  readonly captureRequestBodies: boolean;
+  readonly captureResponseBodies: boolean;
+  readonly maxBodySize: number;
+  readonly redactBodyKeys: string[];
 
   constructor(options: CloudIntegrationOptions) {
     if (!options.projectKey) {
@@ -40,6 +70,17 @@ export class CloudIntegration implements BugReporterIntegration {
     this.appVersion = options.appVersion;
     this.environment = options.environment;
     this.fetchFn = options.fetchImpl ?? fetch.bind(globalThis);
+    this.captureRequestBodies = options.captureRequestBodies ?? false;
+    this.captureResponseBodies = options.captureResponseBodies ?? false;
+    this.maxBodySize = options.maxBodySize ?? 10_000;
+    this.redactBodyKeys = options.redactBodyKeys ?? ["password", "token", "authorization"];
+    this.metadataHooks = options.metadata ?? {};
+    this.privacy = options.privacy ?? {};
+  }
+
+  /** SDK-09: Get privacy options for screenshot masking. */
+  getPrivacy(): PrivacyOptions {
+    return this.privacy;
   }
 
   async submit(
@@ -60,13 +101,13 @@ export class CloudIntegration implements BugReporterIntegration {
     fd.set("project_key", this.projectKey);
     fd.set("title", payload.title);
     fd.set("description", payload.description || "");
-    
+
     // Structured fields
     if (payload.stepsToReproduce) fd.set("steps_to_reproduce", payload.stepsToReproduce);
     if (payload.expectedResult) fd.set("expected_result", payload.expectedResult);
     if (payload.actualResult) fd.set("actual_result", payload.actualResult);
     if (payload.additionalContext) fd.set("additional_context", payload.additionalContext);
-    
+
     fd.set("provider", "cloud");
     fd.set("capture_mode", payload.captureMode);
     fd.set("has_screenshot", String(Boolean(payload.screenshotBlob)));
@@ -92,6 +133,36 @@ export class CloudIntegration implements BugReporterIntegration {
     fd.set("platform", payload.metadata.platform ?? "");
     fd.set("duration_ms", String(payload.elapsedMs));
     fd.set("stopped_at", payload.stoppedAt || "");
+
+    // SDK-01: capture_has_mic
+    if (payload.captureHasMic !== undefined) {
+      fd.set("capture_has_mic", String(payload.captureHasMic));
+    }
+
+    // SDK-03: User identity
+    if (payload.user) {
+      if (payload.user.id) fd.set("user_id", payload.user.id);
+      if (payload.user.email) fd.set("user_email", payload.user.email);
+      if (payload.user.name) fd.set("user_name", payload.user.name);
+    }
+
+    // SDK-05: Custom metadata hooks — resolve at submit time
+    const customMetadata = this.resolveMetadataHooks(payload.customMetadata);
+    if (customMetadata && Object.keys(customMetadata).length > 0) {
+      fd.set("custom_metadata", JSON.stringify(customMetadata));
+    }
+
+    // SDK-06: Breadcrumbs
+    if (payload.breadcrumbs && payload.breadcrumbs.length > 0) {
+      fd.set("has_breadcrumbs", "true");
+      fd.append(
+        "breadcrumbs",
+        new Blob([JSON.stringify(payload.breadcrumbs)], { type: "application/json" }),
+        "breadcrumbs.json",
+      );
+    } else {
+      fd.set("has_breadcrumbs", "false");
+    }
 
     if (payload.metadata.mobile) {
       fd.set("platform", payload.metadata.mobile.platform);
@@ -194,6 +265,66 @@ export class CloudIntegration implements BugReporterIntegration {
       issueUrl: externalUrl || null,
       warnings,
     };
+  }
+
+  // SDK-05: Resolve metadata hooks at submit time
+  private resolveMetadataHooks(
+    payloadMeta?: Record<string, string | number | boolean | null>,
+  ): Record<string, string | number | boolean | null> {
+    const result: Record<string, string | number | boolean | null> = { ...(payloadMeta ?? {}) };
+
+    let currentKeyCount = Object.keys(result).length;
+    for (const [key, fn] of Object.entries(this.metadataHooks)) {
+      if (currentKeyCount >= MAX_METADATA_KEYS) break;
+      try {
+        const alreadyExists = key in result;
+        result[key] = fn();
+        if (!alreadyExists) {
+          currentKeyCount++;
+        }
+      } catch {
+        console.warn(`[QuickBugs] metadata hook "${key}" threw — skipping.`);
+      }
+    }
+
+    // Trim to MAX_METADATA_KEYS if needed (preserve payload keys first)
+    const finalKeys = Object.keys(result);
+    if (finalKeys.length > MAX_METADATA_KEYS) {
+      const payloadKeys = Object.keys(payloadMeta ?? {});
+      const hookKeys = finalKeys.filter(k => !payloadKeys.includes(k));
+      const keysToKeep = [...payloadKeys.slice(0, MAX_METADATA_KEYS), ...hookKeys].slice(0, MAX_METADATA_KEYS);
+      const trimmed: Record<string, string | number | boolean | null> = {};
+      for (const k of keysToKeep) {
+        if (k in result) trimmed[k] = result[k];
+      }
+      Object.assign(result, {}); // clear
+      Object.assign(result, trimmed);
+    }
+
+    // Enforce size limit using UTF-8 byte counts
+    const encoder = new TextEncoder();
+    const serialized = JSON.stringify(result);
+    const serializedBytes = encoder.encode(serialized).length;
+    if (serializedBytes > MAX_METADATA_BYTES) {
+      console.warn(`[QuickBugs] custom_metadata exceeds ${MAX_METADATA_BYTES} bytes — truncating.`);
+      // Keep what fits
+      const truncated: Record<string, string | number | boolean | null> = {};
+      const emptyObjectBytes = encoder.encode("{}").length;
+      const commaBytes = encoder.encode(",").length;
+      let size = emptyObjectBytes;
+      for (const [key, value] of Object.entries(result)) {
+        const entryStr = JSON.stringify({ [key]: value });
+        const entryBytes = encoder.encode(entryStr).length;
+        const entrySize = entryBytes - emptyObjectBytes;
+        const separator = Object.keys(truncated).length > 0 ? commaBytes : 0;
+        if (size + entrySize + separator > MAX_METADATA_BYTES) break;
+        truncated[key] = value;
+        size += entrySize + separator;
+      }
+      return truncated;
+    }
+
+    return result;
   }
 }
 

@@ -16,34 +16,23 @@ function mapRecorderError(error: unknown): Error {
     if (error.name === "NotAllowedError" || error.name === "SecurityError") {
       return new Error("Screen or microphone permission was denied.");
     }
-
     if (error.name === "AbortError") {
       return new Error("Recording setup was cancelled before it started.");
     }
-
     if (error.name === "NotFoundError") {
       return new Error("No screen/tab or microphone source was found.");
     }
-
     if (error.name === "NotReadableError") {
       return new Error("Unable to access the selected screen/tab or microphone.");
     }
-
     return new Error(error.message || "Failed to start recording.");
   }
-
-  if (error instanceof Error) {
-    return error;
-  }
-
+  if (error instanceof Error) return error;
   return new Error("Failed to start recording.");
 }
 
 function pickMimeType(): string | undefined {
-  if (typeof MediaRecorder === "undefined") {
-    return undefined;
-  }
-
+  if (typeof MediaRecorder === "undefined") return undefined;
   return MIME_TYPES.find((mime) => MediaRecorder.isTypeSupported(mime));
 }
 
@@ -63,15 +52,12 @@ export class ScreenRecorder {
   private onEnded: (() => void) | null = null;
   private _hasMic = false;
 
-  /** Whether the last/current recording has microphone audio. */
   get hasMic(): boolean {
     return this._hasMic;
   }
 
   async start(options: ScreenRecorderStartOptions = {}): Promise<void> {
-    if (this.recording) {
-      return;
-    }
+    if (this.recording) return;
 
     if (
       typeof navigator === "undefined" ||
@@ -90,13 +76,8 @@ export class ScreenRecorder {
 
     try {
       const displayOptions: DisplayMediaStreamOptionsWithHints = {
-        video: {
-          frameRate: { ideal: 15, max: 24 },
-          width: { ideal: 1280, max: 1920 },
-          height: { ideal: 720, max: 1080 },
-        },
+        video: { frameRate: { ideal: 15, max: 24 }, width: { ideal: 1280, max: 1920 }, height: { ideal: 720, max: 1080 } },
         audio: true,
-        // Browser hints only; the user still decides what to share in the native prompt.
         preferCurrentTab: true,
         selfBrowserSurface: "include",
         surfaceSwitching: "include",
@@ -104,29 +85,21 @@ export class ScreenRecorder {
       };
 
       const displayStream = await navigator.mediaDevices.getDisplayMedia(displayOptions);
-
       this.displayStream = displayStream;
 
-      // SDK-01: Microphone is optional — never fail recording if mic is denied
       let microphoneStream: MediaStream | null = null;
       this._hasMic = false;
 
       if (typeof navigator.mediaDevices.getUserMedia === "function") {
         try {
           microphoneStream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-            },
+            audio: { echoCancellation: true, noiseSuppression: true },
             video: false,
           });
-
           const micAudioTracks = microphoneStream.getAudioTracks();
           if (micAudioTracks.length > 0) {
             this._hasMic = true;
-            for (const track of micAudioTracks) {
-              track.enabled = true;
-            }
+            for (const track of micAudioTracks) track.enabled = true;
           }
         } catch {
           console.warn("[QuickBugs] Microphone unavailable — recording without mic audio.");
@@ -135,62 +108,41 @@ export class ScreenRecorder {
       }
 
       this.microphoneStream = microphoneStream;
-
       const mixedAudioTracks = await this.buildMixedAudioTracks(displayStream, microphoneStream);
       const tracks = [...displayStream.getVideoTracks(), ...mixedAudioTracks];
 
       if (tracks.length === 0) {
-        for (const track of displayStream.getTracks()) {
-          track.stop();
-        }
-        if (microphoneStream) {
-          for (const track of microphoneStream.getTracks()) {
-            track.stop();
-          }
-        }
+        for (const track of displayStream.getTracks()) track.stop();
+        if (microphoneStream) for (const track of microphoneStream.getTracks()) track.stop();
         throw new Error("No media tracks available for recording.");
       }
 
       this.mixedStream = new MediaStream(tracks);
-
       const mimeType = pickMimeType();
-      const recorderOptions: MediaRecorderOptions = {
-        videoBitsPerSecond: 1_200_000,
-        audioBitsPerSecond: 96_000,
-      };
-
-      if (mimeType) {
-        recorderOptions.mimeType = mimeType;
-      }
+      const recorderOptions: MediaRecorderOptions = { videoBitsPerSecond: 1_200_000, audioBitsPerSecond: 96_000 };
+      if (mimeType) recorderOptions.mimeType = mimeType;
 
       try {
         this.mediaRecorder = new MediaRecorder(this.mixedStream, recorderOptions);
       } catch {
         if (mimeType) {
-          try {
-            this.mediaRecorder = new MediaRecorder(this.mixedStream, { mimeType });
-          } catch {
-            this.mediaRecorder = new MediaRecorder(this.mixedStream);
-          }
+          try { this.mediaRecorder = new MediaRecorder(this.mixedStream, { mimeType }); }
+          catch { this.mediaRecorder = new MediaRecorder(this.mixedStream); }
         } else {
           this.mediaRecorder = new MediaRecorder(this.mixedStream);
         }
       }
 
       this.mediaRecorder.ondataavailable = (event: BlobEvent) => {
-        if (event.data && event.data.size > 0) {
-          this.chunks.push(event.data);
-        }
+        if (event.data && event.data.size > 0) this.chunks.push(event.data);
       };
 
       this.mediaRecorder.onstop = () => {
         const mime = this.mediaRecorder?.mimeType || mimeType || "video/webm";
         const blob = this.chunks.length > 0 ? new Blob(this.chunks, { type: mime }) : null;
-
         this.lastBlob = blob;
         this.recording = false;
         this.cleanupStreams();
-
         const resolve = this.stopResolver;
         this.resetStopPromise();
         resolve?.(blob);
@@ -198,13 +150,8 @@ export class ScreenRecorder {
 
       for (const track of displayStream.getVideoTracks()) {
         track.onended = () => {
-          if (!this.recording) {
-            return;
-          }
-
-          void this.stop().finally(() => {
-            this.onEnded?.();
-          });
+          if (!this.recording) return;
+          void this.stop().finally(() => { this.onEnded?.(); });
         };
       }
 
@@ -218,23 +165,15 @@ export class ScreenRecorder {
   }
 
   async stop(): Promise<Blob | null> {
-    if (!this.recording && !this.stopPromise) {
-      return this.lastBlob;
-    }
-
-    if (this.stopPromise) {
-      return this.stopPromise;
-    }
-
+    if (!this.recording && !this.stopPromise) return this.lastBlob;
+    if (this.stopPromise) return this.stopPromise;
     if (!this.mediaRecorder) {
       this.recording = false;
       this.cleanupStreams();
       return this.lastBlob;
     }
 
-    this.stopPromise = new Promise<Blob | null>((resolve) => {
-      this.stopResolver = resolve;
-    });
+    this.stopPromise = new Promise<Blob | null>((resolve) => { this.stopResolver = resolve; });
 
     if (this.mediaRecorder.state === "inactive") {
       this.mediaRecorder.onstop?.(new Event("stop"));
@@ -245,17 +184,9 @@ export class ScreenRecorder {
     return this.stopPromise;
   }
 
-  isRecording(): boolean {
-    return this.recording;
-  }
-
-  getLastBlob(): Blob | null {
-    return this.lastBlob;
-  }
-
-  clearLastBlob(): void {
-    this.lastBlob = null;
-  }
+  isRecording(): boolean { return this.recording; }
+  getLastBlob(): Blob | null { return this.lastBlob; }
+  clearLastBlob(): void { this.lastBlob = null; }
 
   dispose(): void {
     this.cleanupStreams();
@@ -264,40 +195,10 @@ export class ScreenRecorder {
   }
 
   private cleanupStreams(): void {
-    if (this.audioContext) {
-      void this.audioContext.close().catch(() => undefined);
+    if (this.audioContext) void this.audioContext.close().catch(() => undefined);
+    for (const stream of [this.mixedStream, this.displayStream, this.microphoneStream, this.displayAudioStream, this.microphoneAudioStream]) {
+      if (stream) for (const track of stream.getTracks()) track.stop();
     }
-
-    if (this.mixedStream) {
-      for (const track of this.mixedStream.getTracks()) {
-        track.stop();
-      }
-    }
-
-    if (this.displayStream) {
-      for (const track of this.displayStream.getTracks()) {
-        track.stop();
-      }
-    }
-
-    if (this.microphoneStream) {
-      for (const track of this.microphoneStream.getTracks()) {
-        track.stop();
-      }
-    }
-
-    if (this.displayAudioStream) {
-      for (const track of this.displayAudioStream.getTracks()) {
-        track.stop();
-      }
-    }
-
-    if (this.microphoneAudioStream) {
-      for (const track of this.microphoneAudioStream.getTracks()) {
-        track.stop();
-      }
-    }
-
     this.mediaRecorder = null;
     this.mixedStream = null;
     this.displayStream = null;
@@ -312,20 +213,12 @@ export class ScreenRecorder {
     this.stopResolver = null;
   }
 
-  private async buildMixedAudioTracks(
-    displayStream: MediaStream,
-    microphoneStream: MediaStream | null,
-  ): Promise<MediaStreamTrack[]> {
+  private async buildMixedAudioTracks(displayStream: MediaStream, microphoneStream: MediaStream | null): Promise<MediaStreamTrack[]> {
     const displayAudioTracks = displayStream.getAudioTracks();
     const microphoneAudioTracks = microphoneStream?.getAudioTracks() ?? [];
 
-    if (displayAudioTracks.length === 0 && microphoneAudioTracks.length === 0) {
-      return [];
-    }
-
-    if (typeof AudioContext === "undefined") {
-      return [...displayAudioTracks, ...microphoneAudioTracks];
-    }
+    if (displayAudioTracks.length === 0 && microphoneAudioTracks.length === 0) return [];
+    if (typeof AudioContext === "undefined") return [...displayAudioTracks, ...microphoneAudioTracks];
 
     const audioContext = new AudioContext();
     await audioContext.resume().catch(() => undefined);
@@ -333,29 +226,24 @@ export class ScreenRecorder {
 
     if (displayAudioTracks.length > 0) {
       this.displayAudioStream = new MediaStream(displayAudioTracks);
-      const displaySource = audioContext.createMediaStreamSource(this.displayAudioStream);
-      const displayGain = audioContext.createGain();
-      displayGain.gain.value = 1;
-      displaySource.connect(displayGain);
-      displayGain.connect(destination);
+      const source = audioContext.createMediaStreamSource(this.displayAudioStream);
+      const gain = audioContext.createGain();
+      gain.gain.value = 1;
+      source.connect(gain);
+      gain.connect(destination);
     }
 
     if (microphoneAudioTracks.length > 0) {
       this.microphoneAudioStream = new MediaStream(microphoneAudioTracks);
-      const microphoneSource = audioContext.createMediaStreamSource(this.microphoneAudioStream);
-      const microphoneGain = audioContext.createGain();
-      microphoneGain.gain.value = 1;
-      microphoneSource.connect(microphoneGain);
-      microphoneGain.connect(destination);
+      const source = audioContext.createMediaStreamSource(this.microphoneAudioStream);
+      const gain = audioContext.createGain();
+      gain.gain.value = 1;
+      source.connect(gain);
+      gain.connect(destination);
     }
 
     this.audioContext = audioContext;
-
     const mixedAudioTracks = destination.stream.getAudioTracks();
-    if (mixedAudioTracks.length > 0) {
-      return mixedAudioTracks;
-    }
-
-    return [...displayAudioTracks, ...microphoneAudioTracks];
+    return mixedAudioTracks.length > 0 ? mixedAudioTracks : [...displayAudioTracks, ...microphoneAudioTracks];
   }
 }

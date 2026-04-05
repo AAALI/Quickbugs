@@ -1,3 +1,15 @@
+export { QuickBugsProvider } from "./components/QuickBugsProvider";
+export { FloatingBugButton } from "./components/FloatingBugButton";
+export { BugReporterModal } from "./components/BugReporterModal";
+
+export { useQuickBugs, QuickBugsKey } from "./composables/useQuickBugs";
+export type {
+  QuickBugsContext,
+  HeadlessCaptureOptions,
+  HeadlessCaptureResult,
+} from "./composables/useQuickBugs";
+export type { BreadcrumbConfig } from "./components/QuickBugsProvider";
+
 export { BugReporter } from "./core/BugReporter";
 export { BugSession } from "./core/BugSession";
 export { ScreenRecorder } from "./core/ScreenRecorder";
@@ -40,8 +52,3 @@ export { LinearIntegration, type LinearIntegrationOptions } from "@quick-bug-rep
 export { JiraIntegration, type JiraIntegrationOptions } from "@quick-bug-reporter/core";
 export { CloudIntegration, type CloudIntegrationOptions } from "@quick-bug-reporter/core";
 export type { BugReporterIntegrations } from "@quick-bug-reporter/core";
-
-export { BugReporterProvider, useBugReporter } from "./ui/BugReporterProvider";
-export type { BreadcrumbConfig, HeadlessCaptureOptions, HeadlessCaptureResult } from "./ui/BugReporterProvider";
-export { FloatingBugButton } from "./ui/FloatingBugButton";
-export { BugReporterModal } from "./ui/BugReporterModal";

@@ -1,6 +1,6 @@
 import { NetworkLogger, type NetworkLogEntry } from "@quick-bug-reporter/core";
 import { ScreenRecorder } from "./ScreenRecorder";
-import { CaptureRegion, ScreenshotCapturer, type ScreenshotPrivacyOptions } from "./ScreenshotCapturer";
+import { CaptureRegion, ScreenshotCapturer } from "./ScreenshotCapturer";
 import {
   BugSessionArtifacts,
   DEFAULT_MAX_RECORDING_MS,
@@ -12,7 +12,6 @@ type BugSessionOptions = {
   maxDurationMs?: number;
   screenRecorder?: ScreenRecorder;
   screenshotCapturer?: ScreenshotCapturer;
-  privacy?: ScreenshotPrivacyOptions;
   networkLogger?: NetworkLogger;
   onAutoStop?: (artifacts: BugSessionArtifacts) => void;
 };
@@ -34,32 +33,24 @@ export class BugSession {
   constructor(options: BugSessionOptions = {}) {
     this.maxDurationMs = options.maxDurationMs ?? DEFAULT_MAX_RECORDING_MS;
     this.screenRecorder = options.screenRecorder ?? new ScreenRecorder();
-    this.screenshotCapturer = options.screenshotCapturer ?? (options.privacy ? new ScreenshotCapturer(options.privacy) : new ScreenshotCapturer());
+    this.screenshotCapturer = options.screenshotCapturer ?? new ScreenshotCapturer();
     this.networkLogger = options.networkLogger ?? new NetworkLogger();
     this.onAutoStop = options.onAutoStop;
   }
 
   async start(): Promise<void> {
-    if (this.recording) {
-      return;
-    }
-
-    if (this.networkLogger.isRecording()) {
-      this.networkLogger.stop();
-    }
+    if (this.recording) return;
+    if (this.networkLogger.isRecording()) this.networkLogger.stop();
 
     this.clearAutoStopTimer();
     this.networkLogger.clear();
     this.lastArtifacts = null;
     this.screenshotLogsPendingSubmit = false;
-
     this.networkLogger.start();
 
     try {
       await this.screenRecorder.start({
-        onEnded: () => {
-          void this.handleForcedStop("screen_ended");
-        },
+        onEnded: () => { void this.handleForcedStop("screen_ended"); },
       });
     } catch (error) {
       this.networkLogger.stop();
@@ -69,20 +60,12 @@ export class BugSession {
 
     this.recording = true;
     this.startedAtMs = Date.now();
-
-    this.autoStopTimeout = setTimeout(() => {
-      void this.handleForcedStop("time_limit");
-    }, this.maxDurationMs);
+    this.autoStopTimeout = setTimeout(() => { void this.handleForcedStop("time_limit"); }, this.maxDurationMs);
   }
 
   async captureScreenshot(region?: CaptureRegion): Promise<BugSessionArtifacts> {
-    if (this.recording) {
-      await this.stop("manual");
-    }
-
-    if (this.networkLogger.isRecording()) {
-      this.networkLogger.stop();
-    }
+    if (this.recording) await this.stop("manual");
+    if (this.networkLogger.isRecording()) this.networkLogger.stop();
 
     this.clearAutoStopTimer();
     this.networkLogger.clear();
@@ -122,72 +105,39 @@ export class BugSession {
   }
 
   async stop(reason: RecordingStopReason = "manual"): Promise<BugSessionArtifacts | null> {
-    if (this.stopInFlight) {
-      return this.stopInFlight;
-    }
+    if (this.stopInFlight) return this.stopInFlight;
+    if (!this.recording) return this.lastArtifacts;
 
-    if (!this.recording) {
-      return this.lastArtifacts;
-    }
-
-    this.stopInFlight = this.stopInternal(reason).finally(() => {
-      this.stopInFlight = null;
-    });
-
+    this.stopInFlight = this.stopInternal(reason).finally(() => { this.stopInFlight = null; });
     return this.stopInFlight;
   }
 
-  isRecording(): boolean {
-    return this.recording;
-  }
+  isRecording(): boolean { return this.recording; }
 
   getElapsedMs(): number {
-    if (this.recording && this.startedAtMs) {
-      return Math.max(0, Date.now() - this.startedAtMs);
-    }
-
+    if (this.recording && this.startedAtMs) return Math.max(0, Date.now() - this.startedAtMs);
     return this.lastArtifacts?.elapsedMs ?? 0;
   }
 
-  getMaxDurationMs(): number {
-    return this.maxDurationMs;
-  }
+  getMaxDurationMs(): number { return this.maxDurationMs; }
+  getLastArtifacts(): BugSessionArtifacts | null { return this.lastArtifacts; }
+  getLastCaptureMode(): ReportCaptureMode | null { return this.lastArtifacts?.captureMode ?? null; }
 
-  getLastArtifacts(): BugSessionArtifacts | null {
-    return this.lastArtifacts;
-  }
-
-  getLastCaptureMode(): ReportCaptureMode | null {
-    return this.lastArtifacts?.captureMode ?? null;
-  }
-
-  /** SDK-01: Whether the current/last recording had microphone access. */
-  getCaptureHasMic(): boolean {
-    return this.screenRecorder.hasMic;
-  }
+  getCaptureHasMic(): boolean { return this.screenRecorder.hasMic; }
 
   finalizeNetworkLogsForSubmit(captureMode: ReportCaptureMode): NetworkLogEntry[] {
-    if (
-      captureMode === "screenshot" &&
-      this.screenshotLogsPendingSubmit &&
-      this.networkLogger.isRecording()
-    ) {
+    if (captureMode === "screenshot" && this.screenshotLogsPendingSubmit && this.networkLogger.isRecording()) {
       const logs = this.networkLogger.stop();
       this.screenshotLogsPendingSubmit = false;
       return logs;
     }
-
     return this.networkLogger.getLogs();
   }
 
   resetArtifacts(): void {
     this.lastArtifacts = null;
     this.screenRecorder.clearLastBlob();
-
-    if (this.networkLogger.isRecording()) {
-      this.networkLogger.stop();
-    }
-
+    if (this.networkLogger.isRecording()) this.networkLogger.stop();
     this.networkLogger.clear();
     this.screenshotLogsPendingSubmit = false;
   }
@@ -196,27 +146,21 @@ export class BugSession {
     await this.stop("manual");
     this.clearAutoStopTimer();
     this.screenRecorder.dispose();
-
-    if (this.networkLogger.isRecording()) {
-      this.networkLogger.stop();
-    }
-
+    if (this.networkLogger.isRecording()) this.networkLogger.stop();
     this.networkLogger.clear();
     this.screenshotLogsPendingSubmit = false;
   }
 
   private async stopInternal(reason: RecordingStopReason): Promise<BugSessionArtifacts | null> {
     this.clearAutoStopTimer();
-
     const startedAtMs = this.startedAtMs ?? Date.now();
-
     this.recording = false;
     this.startedAtMs = null;
 
     const videoBlob = await this.screenRecorder.stop();
     const networkLogs = this.networkLogger.stop();
-
     const stoppedAtMs = Date.now();
+
     const artifacts: BugSessionArtifacts = {
       videoBlob,
       screenshotBlob: null,
@@ -230,14 +174,13 @@ export class BugSession {
 
     this.lastArtifacts = artifacts;
     this.screenshotLogsPendingSubmit = false;
-
     return artifacts;
   }
 
   private async handleForcedStop(reason: Exclude<RecordingStopReason, "manual">): Promise<void> {
     const artifacts = await this.stop(reason);
-
-    if (artifacts && this.onAutoStop) {
+    // Only invoke onAutoStop if the stop reason matches (wasn't a manual stop)
+    if (artifacts && artifacts.stopReason === reason && this.onAutoStop) {
       this.onAutoStop(artifacts);
     }
   }

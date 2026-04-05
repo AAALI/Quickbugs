@@ -1,5 +1,5 @@
 import { BugSession } from "./BugSession";
-import { CaptureRegion, type ScreenshotPrivacyOptions } from "./ScreenshotCapturer";
+import { CaptureRegion } from "./ScreenshotCapturer";
 import type { ConsoleLogEntry, CapturedJsError, BreadcrumbEntry, UserIdentity } from "@quick-bug-reporter/core";
 import {
   BugClientMetadata,
@@ -17,7 +17,6 @@ type BugReporterOptions = {
   maxDurationMs?: number;
   onAutoStop?: (artifacts: BugSessionArtifacts) => void;
   session?: BugSession;
-  privacy?: ScreenshotPrivacyOptions;
 };
 
 type BugReporterSubmitOptions = {
@@ -26,14 +25,11 @@ type BugReporterSubmitOptions = {
   consoleLogs?: ConsoleLogEntry[];
   jsErrors?: CapturedJsError[];
   onProgress?: SubmitProgressCallback;
-  // Structured bug report fields
   stepsToReproduce?: string;
   expectedResult?: string;
   actualResult?: string;
   additionalContext?: string;
-  // SDK-03: User identity
   user?: UserIdentity;
-  // SDK-06: Breadcrumbs
   breadcrumbs?: BreadcrumbEntry[];
 };
 
@@ -48,54 +44,49 @@ export class BugReporter {
       new BugSession({
         maxDurationMs: options.maxDurationMs ?? DEFAULT_MAX_RECORDING_MS,
         onAutoStop: options.onAutoStop,
-        privacy: options.privacy,
       });
   }
 
-  async start(): Promise<void> {
-    await this.session.start();
-  }
+  async start(): Promise<void> { await this.session.start(); }
 
   async captureScreenshot(region?: CaptureRegion): Promise<BugSessionArtifacts> {
     return this.session.captureScreenshot(region);
   }
 
-  async stop(): Promise<BugSessionArtifacts | null> {
-    return this.session.stop("manual");
-  }
+  async stop(): Promise<BugSessionArtifacts | null> { return this.session.stop("manual"); }
 
   async submit(title: string, description: string, options: BugReporterSubmitOptions = {}): Promise<BugSubmitResult> {
-    if (this.isRecording()) {
-      await this.stop();
-    }
+    if (this.isRecording()) await this.stop();
 
     const artifacts = this.session.getLastArtifacts();
-
-    if (!artifacts) {
-      throw new Error("Capture a screenshot or record and stop a bug session before submitting.");
-    }
+    // Allow submission without artifacts if explicitly requesting no capture
+    const isNoCaptureMode = options.metadata?.captureMode === "none";
+    if (!artifacts && !isNoCaptureMode) throw new Error("Capture a screenshot or record and stop a bug session before submitting.");
 
     const normalizedTitle = title.trim();
-
-    if (!normalizedTitle) {
-      throw new Error("A bug title is required.");
-    }
+    if (!normalizedTitle) throw new Error("A bug title is required.");
 
     const normalizedDescription = description.trim() || "No additional details provided.";
 
+    // Handle "none" mode with minimal artifacts
+    const now = new Date().toISOString();
+    const captureMode = artifacts?.captureMode ?? "none";
     const metadata: BugClientMetadata = {
       ...collectClientEnvironmentMetadata(),
-      captureMode: artifacts.captureMode,
-      capture: {
+      captureMode,
+      capture: artifacts ? {
         startedAt: artifacts.startedAt,
         stoppedAt: artifacts.stoppedAt,
         elapsedMs: artifacts.elapsedMs,
+      } : {
+        startedAt: now,
+        stoppedAt: now,
+        elapsedMs: 0,
       },
       ...(options.metadata || {}),
     };
 
-    // SDK-01: Capture mic status from session
-    const captureHasMic = this.session.getCaptureHasMic();
+    const captureHasMic = artifacts ? this.session.getCaptureHasMic() : false;
 
     const payload = {
       title: normalizedTitle,
@@ -104,59 +95,38 @@ export class BugReporter {
       expectedResult: options.expectedResult,
       actualResult: options.actualResult,
       additionalContext: options.additionalContext,
-      videoBlob: artifacts.videoBlob,
-      screenshotBlob: options.screenshotBlob ?? artifacts.screenshotBlob,
-      networkLogs: this.session.finalizeNetworkLogsForSubmit(artifacts.captureMode),
+      videoBlob: artifacts?.videoBlob ?? null,
+      screenshotBlob: options.screenshotBlob ?? artifacts?.screenshotBlob ?? null,
+      networkLogs: artifacts ? this.session.finalizeNetworkLogsForSubmit(artifacts.captureMode) : [],
       consoleLogs: options.consoleLogs ?? [],
       jsErrors: options.jsErrors ?? [],
-      captureMode: artifacts.captureMode,
+      captureMode,
       pageUrl: typeof window !== "undefined" ? window.location.href : "",
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
-      startedAt: artifacts.startedAt,
-      stoppedAt: artifacts.stoppedAt,
-      elapsedMs: artifacts.elapsedMs,
+      startedAt: artifacts?.startedAt ?? now,
+      stoppedAt: artifacts?.stoppedAt ?? now,
+      elapsedMs: artifacts?.elapsedMs ?? 0,
       metadata,
       captureHasMic,
       user: options.user,
       breadcrumbs: options.breadcrumbs,
     };
 
-    options.onProgress?.("Submitting to " + this.integration.provider + "…");
+    options.onProgress?.("Submitting to " + this.integration.provider + "...");
     const result = await this.integration.submit(payload, options.onProgress);
     this.session.resetArtifacts();
-
     return result;
   }
 
-  isRecording(): boolean {
-    return this.session.isRecording();
-  }
+  isRecording(): boolean { return this.session.isRecording(); }
+  getElapsedMs(): number { return this.session.getElapsedMs(); }
+  getMaxDurationMs(): number { return this.session.getMaxDurationMs(); }
+  getLastArtifacts(): BugSessionArtifacts | null { return this.session.getLastArtifacts(); }
 
-  getElapsedMs(): number {
-    return this.session.getElapsedMs();
-  }
+  clearDraft(): void { this.session.resetArtifacts(); }
 
-  getMaxDurationMs(): number {
-    return this.session.getMaxDurationMs();
-  }
+  setIntegration(integration: BugReporterIntegration): void { this.integration = integration; }
+  getSelectedProvider(): BugTrackerProvider { return this.integration.provider; }
 
-  getLastArtifacts(): BugSessionArtifacts | null {
-    return this.session.getLastArtifacts();
-  }
-
-  clearDraft(): void {
-    this.session.resetArtifacts();
-  }
-
-  setIntegration(integration: BugReporterIntegration): void {
-    this.integration = integration;
-  }
-
-  getSelectedProvider(): BugTrackerProvider {
-    return this.integration.provider;
-  }
-
-  async dispose(): Promise<void> {
-    await this.session.dispose();
-  }
+  async dispose(): Promise<void> { await this.session.dispose(); }
 }

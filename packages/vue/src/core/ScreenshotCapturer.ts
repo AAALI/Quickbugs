@@ -1,8 +1,7 @@
 import html2canvas from "html2canvas-pro";
 
 const BUG_REPORTER_UI_ATTR = "data-bug-reporter-ui";
-const UNSUPPORTED_COLOR_FUNCTION_PATTERN =
-  /\b(?:lab|lch|oklab|oklch|color)\([^)]*\)/gi;
+const UNSUPPORTED_COLOR_FUNCTION_PATTERN = /\b(?:lab|lch|oklab|oklch|color)\([^)]*\)/gi;
 const COLOR_FALLBACK_VALUE = "rgb(17, 24, 39)";
 const DEFAULT_BACKGROUND_COLOR = "#ffffff";
 
@@ -17,49 +16,30 @@ function replaceUnsupportedColorFunctions(value: string): string {
 
 function unclampClonedLayout(clonedDoc: Document): void {
   for (const el of [clonedDoc.documentElement, clonedDoc.body]) {
-    if (!el) {
-      continue;
-    }
-
+    if (!el) continue;
     el.style.setProperty("height", "auto", "important");
     el.style.setProperty("overflow", "visible", "important");
   }
-
   const overrideStyle = clonedDoc.createElement("style");
   overrideStyle.textContent = `html, body { height: auto !important; overflow: visible !important; }`;
   clonedDoc.head.appendChild(overrideStyle);
 }
 
 function sanitizeCloneForModernColors(clonedDocument: Document): void {
-  const styleElements = clonedDocument.querySelectorAll("style");
-  for (const styleElement of styleElements) {
-    if (!styleElement.textContent) {
-      continue;
+  for (const styleElement of clonedDocument.querySelectorAll("style")) {
+    if (styleElement.textContent) {
+      styleElement.textContent = replaceUnsupportedColorFunctions(styleElement.textContent);
     }
-
-    styleElement.textContent = replaceUnsupportedColorFunctions(styleElement.textContent);
   }
-
-  const styledElements = clonedDocument.querySelectorAll<HTMLElement>("[style]");
-  for (const element of styledElements) {
+  for (const element of clonedDocument.querySelectorAll<HTMLElement>("[style]")) {
     const style = element.getAttribute("style");
-    if (!style) {
-      continue;
-    }
-
-    element.setAttribute("style", replaceUnsupportedColorFunctions(style));
+    if (style) element.setAttribute("style", replaceUnsupportedColorFunctions(style));
   }
 }
 
 async function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
-  const blob = await new Promise<Blob | null>((resolve) => {
-    canvas.toBlob(resolve, "image/png", 1);
-  });
-
-  if (!blob) {
-    throw new Error("Failed to generate screenshot image.");
-  }
-
+  const blob = await new Promise<Blob | null>((resolve) => { canvas.toBlob(resolve, "image/png", 1); });
+  if (!blob) throw new Error("Failed to generate screenshot image.");
   return blob;
 }
 
@@ -70,14 +50,12 @@ export type CaptureRegion = {
   height: number;
 };
 
-// SDK-09: Privacy options for screenshot masking
 export type ScreenshotPrivacyOptions = {
   maskSelectors?: string[];
   blockSelectors?: string[];
 };
 
 function applyPrivacyToClone(doc: Document, privacy: ScreenshotPrivacyOptions): void {
-  // Mask: blur matched elements
   if (privacy.maskSelectors) {
     for (const selector of privacy.maskSelectors) {
       for (const el of doc.querySelectorAll<HTMLElement>(selector)) {
@@ -85,11 +63,42 @@ function applyPrivacyToClone(doc: Document, privacy: ScreenshotPrivacyOptions): 
       }
     }
   }
-
-  // Block: replace with grey placeholder
   if (privacy.blockSelectors) {
     for (const selector of privacy.blockSelectors) {
       for (const el of doc.querySelectorAll<HTMLElement>(selector)) {
+        const tagName = el.tagName.toLowerCase();
+
+        // Handle replaced elements
+        if (tagName === "img") {
+          el.removeAttribute("src");
+          el.removeAttribute("srcset");
+        } else if (tagName === "video") {
+          const video = el as HTMLVideoElement;
+          video.pause();
+          video.removeAttribute("src");
+          video.removeAttribute("poster");
+          const sources = video.querySelectorAll("source");
+          sources.forEach(s => s.remove());
+        } else if (tagName === "audio") {
+          const audio = el as HTMLAudioElement;
+          audio.pause();
+          audio.removeAttribute("src");
+          const sources = audio.querySelectorAll("source");
+          sources.forEach(s => s.remove());
+        } else if (tagName === "canvas") {
+          const canvas = el as HTMLCanvasElement;
+          const ctx = canvas.getContext("2d");
+          if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        } else if (tagName === "input" || tagName === "textarea") {
+          (el as HTMLInputElement | HTMLTextAreaElement).value = "";
+        } else if (tagName === "select") {
+          (el as HTMLSelectElement).selectedIndex = -1;
+        }
+
+        // Remove background images
+        el.style.setProperty("background-image", "none", "important");
+
+        // Apply blocking styles
         el.style.setProperty("background", "#808080", "important");
         el.style.setProperty("color", "transparent", "important");
         el.innerHTML = "";
@@ -109,20 +118,14 @@ export class ScreenshotCapturer {
     if (typeof window === "undefined" || typeof document === "undefined") {
       throw new Error("Screenshot capture is not available in this environment.");
     }
-
     const target = document.documentElement;
-
-    if (!target) {
-      throw new Error("Could not find a capture target for screenshot.");
-    }
+    if (!target) throw new Error("Could not find a capture target for screenshot.");
 
     try {
       return await this.captureViaDomSnapshot(target);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown DOM capture error.";
-      throw new Error(
-        `Quick screenshot failed in this browser (${message}). Try video capture for this page.`,
-      );
+      throw new Error(`Quick screenshot failed in this browser (${message}). Try video capture for this page.`);
     }
   }
 
@@ -131,23 +134,12 @@ export class ScreenshotCapturer {
     const viewportHeight = Math.max(1, window.innerHeight || document.documentElement.clientHeight || 1);
     const scale = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
     const bodyBackgroundColor = window.getComputedStyle(document.body).backgroundColor;
-    const backgroundColor =
-      bodyBackgroundColor && bodyBackgroundColor !== "rgba(0, 0, 0, 0)"
-        ? bodyBackgroundColor
-        : DEFAULT_BACKGROUND_COLOR;
+    const backgroundColor = bodyBackgroundColor && bodyBackgroundColor !== "rgba(0, 0, 0, 0)" ? bodyBackgroundColor : DEFAULT_BACKGROUND_COLOR;
 
-    // html2canvas has a known bug where scrolled pages produce blank or offset
-    // captures. The proven fix is to scroll the window to 0,0 before capture,
-    // then crop the rendered output at the saved scroll offset.
     const savedScrollX = window.scrollX;
     const savedScrollY = window.scrollY;
     window.scrollTo(0, 0);
 
-    // html2canvas reads the target element's dimensions from the ORIGINAL
-    // document before cloning. If html/body have `height: 100%`, the canvas
-    // is limited to viewport height and cropping at the scroll offset yields
-    // blank. We temporarily override height on the real document so html2canvas
-    // measures the full content height, then restore after capture.
     const htmlEl = document.documentElement;
     const bodyEl = document.body;
     const origHtmlHeight = htmlEl.style.height;
@@ -169,9 +161,7 @@ export class ScreenshotCapturer {
       windowHeight: viewportHeight,
       scrollX: 0,
       scrollY: 0,
-      ignoreElements: (element: Element) => {
-        return element instanceof HTMLElement && element.getAttribute(BUG_REPORTER_UI_ATTR) === "true";
-      },
+      ignoreElements: (element: Element) => element instanceof HTMLElement && element.getAttribute(BUG_REPORTER_UI_ATTR) === "true",
     };
 
     let lastError: unknown = null;
@@ -189,16 +179,11 @@ export class ScreenshotCapturer {
             foreignObjectRendering: attempt.foreignObjectRendering,
             onclone: (clonedDocument: Document) => {
               unclampClonedLayout(clonedDocument);
-              if (attempt.sanitizeColorFunctions) {
-                sanitizeCloneForModernColors(clonedDocument);
-              }
-              // SDK-09: Apply privacy masking/blocking
+              if (attempt.sanitizeColorFunctions) sanitizeCloneForModernColors(clonedDocument);
               applyPrivacyToClone(clonedDocument, this.privacy);
             },
           });
 
-          // Manually crop to the viewport area the user was looking at.
-          // This bypasses html2canvas's broken x/y crop on scrolled pages.
           const cropW = Math.round(viewportWidth * scale);
           const cropH = Math.round(viewportHeight * scale);
           const cropX = Math.round(savedScrollX * scale);
@@ -207,11 +192,8 @@ export class ScreenshotCapturer {
           const cropCanvas = document.createElement("canvas");
           cropCanvas.width = cropW;
           cropCanvas.height = cropH;
-
           const ctx = cropCanvas.getContext("2d");
-          if (!ctx) {
-            return await canvasToPngBlob(fullCanvas);
-          }
+          if (!ctx) return await canvasToPngBlob(fullCanvas);
 
           ctx.drawImage(fullCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
           return await canvasToPngBlob(cropCanvas);
@@ -219,7 +201,6 @@ export class ScreenshotCapturer {
           lastError = error;
         }
       }
-
       throw lastError ?? new Error("DOM snapshot capture failed.");
     } finally {
       htmlEl.style.height = origHtmlHeight;
@@ -237,7 +218,6 @@ export class ScreenshotCapturer {
 
   private async cropBlob(blob: Blob, region: CaptureRegion): Promise<Blob> {
     const bitmap = await createImageBitmap(blob);
-
     const scale = bitmap.width / (window.innerWidth || 1);
     const sx = Math.round(region.x * scale);
     const sy = Math.round(region.y * scale);
@@ -247,16 +227,11 @@ export class ScreenshotCapturer {
     const canvas = document.createElement("canvas");
     canvas.width = Math.max(1, sw);
     canvas.height = Math.max(1, sh);
-
     const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      bitmap.close();
-      throw new Error("Could not create canvas for region crop.");
-    }
+    if (!ctx) { bitmap.close(); throw new Error("Could not create canvas for region crop."); }
 
     ctx.drawImage(bitmap, sx, sy, sw, sh, 0, 0, sw, sh);
     bitmap.close();
-
     return canvasToPngBlob(canvas);
   }
 }

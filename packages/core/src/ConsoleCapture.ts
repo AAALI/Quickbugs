@@ -2,6 +2,34 @@ const MAX_CONSOLE_ENTRIES = 200;
 const MAX_ERROR_ENTRIES = 50;
 const MAX_ARG_LENGTH = 1000;
 
+// SDK-08: Singleton for boot-time capture
+let quickCaptureInstance: ConsoleCapture | null = null;
+
+/**
+ * Start console + error capture immediately, before React renders.
+ * Call at the very top of your app entry file (main.tsx / index.tsx).
+ *
+ * ```ts
+ * import { quickCapture } from 'quick-bug-reporter-core'
+ * quickCapture()
+ * ```
+ *
+ * BugReporterProvider will detect and reuse this instance.
+ */
+export function quickCapture(): ConsoleCapture {
+  if (quickCaptureInstance) return quickCaptureInstance;
+  quickCaptureInstance = new ConsoleCapture();
+  quickCaptureInstance.start();
+  return quickCaptureInstance;
+}
+
+/**
+ * Returns the existing quickCapture instance, or null if not started.
+ */
+export function getQuickCaptureInstance(): ConsoleCapture | null {
+  return quickCaptureInstance;
+}
+
 export type ConsoleLogEntry = {
   level: "log" | "info" | "warn" | "error";
   timestamp: string;

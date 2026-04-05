@@ -12,9 +12,11 @@ import {
 } from "react";
 
 import { BugReporter } from "../core/BugReporter";
-import type { CaptureRegion } from "../core/ScreenshotCapturer";
+import type { CaptureRegion, ScreenshotPrivacyOptions } from "../core/ScreenshotCapturer";
 import {
+  BreadcrumbCapture,
   ConsoleCapture,
+  getQuickCaptureInstance,
   BugClientMetadata,
   BugSessionArtifacts,
   BugSubmitResult,
@@ -23,15 +25,31 @@ import {
   ReportCaptureMode,
   ScreenshotHighlightRegion,
   toErrorMessage,
+  type BreadcrumbEntry,
   type BugReporterIntegrations,
+  type UserIdentity,
 } from "@quick-bug-reporter/core";
 import { RegionSelector } from "./RegionSelector";
+
+// SDK-06: Breadcrumb config
+export type BreadcrumbConfig = {
+  clicks?: boolean;
+  navigation?: boolean;
+  forms?: boolean;
+  maxEntries?: number;
+};
 
 type BugReporterProviderProps = {
   children: ReactNode;
   integrations: BugReporterIntegrations;
   defaultProvider?: BugTrackerProvider;
   maxDurationMs?: number;
+  // SDK-03: User identity
+  user?: UserIdentity;
+  // SDK-06: Breadcrumb configuration
+  breadcrumbs?: BreadcrumbConfig | false;
+  // SDK-09: Privacy options
+  privacy?: ScreenshotPrivacyOptions;
 };
 
 type ScreenshotAnnotationState = {
@@ -39,6 +57,19 @@ type ScreenshotAnnotationState = {
   highlights: ScreenshotHighlightRegion[];
   imageWidth: number;
   imageHeight: number;
+};
+
+// SDK-07: Headless capture options
+export type HeadlessCaptureOptions = {
+  title: string;
+  description?: string;
+  captureMode?: "screenshot" | "none";
+};
+
+export type HeadlessCaptureResult = {
+  success: boolean;
+  reportId: string;
+  externalIssueUrl: string | null;
 };
 
 type BugReporterContextValue = {
@@ -79,6 +110,8 @@ type BugReporterContextValue = {
     }
   ) => Promise<BugSubmitResult | null>;
   resetMessages: () => void;
+  // SDK-07: Headless capture
+  captureAndSubmit: (options: HeadlessCaptureOptions) => Promise<HeadlessCaptureResult>;
 };
 
 const BugReporterContext = createContext<BugReporterContextValue | null>(null);
@@ -95,6 +128,9 @@ export function BugReporterProvider({
   integrations,
   defaultProvider,
   maxDurationMs = DEFAULT_MAX_RECORDING_MS,
+  user,
+  breadcrumbs: breadcrumbConfig,
+  privacy,
 }: BugReporterProviderProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
@@ -122,8 +158,22 @@ export function BugReporterProvider({
 
   const reporterRef = useRef<BugReporter | null>(null);
   const consoleCaptureRef = useRef<ConsoleCapture | null>(null);
+  const breadcrumbCaptureRef = useRef<BreadcrumbCapture | null>(null);
+  const userRef = useRef<UserIdentity | undefined>(user);
 
+  // Keep userRef current without re-renders
   useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  // SDK-08: Reuse quickCapture() instance if it was started before React
+  useEffect(() => {
+    const existing = getQuickCaptureInstance();
+    if (existing) {
+      consoleCaptureRef.current = existing;
+      return; // don't stop it on unmount — it was started externally
+    }
+
     const capture = new ConsoleCapture();
     capture.start();
     consoleCaptureRef.current = capture;
@@ -133,6 +183,26 @@ export function BugReporterProvider({
       consoleCaptureRef.current = null;
     };
   }, []);
+
+  // SDK-06: Breadcrumb capture
+  const memoizedBreadcrumbConfig = useMemo(() => breadcrumbConfig, [
+    breadcrumbConfig === false ? false : JSON.stringify(breadcrumbConfig)
+  ]);
+
+  useEffect(() => {
+    if (memoizedBreadcrumbConfig === false) return;
+
+    const bc = new BreadcrumbCapture(
+      typeof memoizedBreadcrumbConfig === "object" ? memoizedBreadcrumbConfig : {},
+    );
+    bc.start();
+    breadcrumbCaptureRef.current = bc;
+
+    return () => {
+      bc.stop();
+      breadcrumbCaptureRef.current = null;
+    };
+  }, [memoizedBreadcrumbConfig]);
 
   const availableProviders = useMemo(() => {
     return (["cloud", "linear", "jira"] as const).filter((provider) => Boolean(integrations[provider]));
@@ -257,6 +327,7 @@ export function BugReporterProvider({
         integration,
         maxDurationMs,
         onAutoStop: handleAutoStop,
+        privacy,
       });
       return;
     }
@@ -365,6 +436,7 @@ export function BugReporterProvider({
       integration,
       maxDurationMs,
       onAutoStop: handleAutoStop,
+      privacy,
     });
 
     if (!selectedProvider) {
@@ -536,6 +608,16 @@ export function BugReporterProvider({
     setScreenshotAnnotation(annotation);
   }, []);
 
+  // Helper: collect shared submission data
+  const collectSubmissionExtras = useCallback(() => {
+    const { consoleLogs, jsErrors } = consoleCaptureRef.current?.snapshot() ?? {
+      consoleLogs: [],
+      jsErrors: [],
+    };
+    const breadcrumbEntries: BreadcrumbEntry[] = breadcrumbCaptureRef.current?.snapshot() ?? [];
+    return { consoleLogs, jsErrors, breadcrumbs: breadcrumbEntries, user: userRef.current };
+  }, []);
+
   const submitReport = useCallback(
     async (
       title: string,
@@ -605,10 +687,7 @@ export function BugReporterProvider({
             : undefined,
       };
 
-      const { consoleLogs, jsErrors } = consoleCaptureRef.current?.snapshot() ?? {
-        consoleLogs: [],
-        jsErrors: [],
-      };
+      const extras = collectSubmissionExtras();
 
       try {
         const result = await reporter.submit(title, description, {
@@ -618,8 +697,10 @@ export function BugReporterProvider({
           additionalContext,
           screenshotBlob: screenshotBlobForSubmit,
           metadata,
-          consoleLogs,
-          jsErrors,
+          consoleLogs: extras.consoleLogs,
+          jsErrors: extras.jsErrors,
+          breadcrumbs: extras.breadcrumbs,
+          user: extras.user,
           onProgress: setSubmissionProgress,
         });
 
@@ -641,6 +722,7 @@ export function BugReporterProvider({
     },
     [
       clearDraft,
+      collectSubmissionExtras,
       draftMode,
       getOrCreateReporter,
       integrations,
@@ -648,6 +730,61 @@ export function BugReporterProvider({
       screenshotBlob,
       selectedProvider,
     ],
+  );
+
+  // SDK-07: Headless capture and submit
+  const captureAndSubmit = useCallback(
+    async (options: HeadlessCaptureOptions): Promise<HeadlessCaptureResult> => {
+      const reporter = getOrCreateReporter();
+      if (!reporter) {
+        return { success: false, reportId: "", externalIssueUrl: null };
+      }
+
+      const captureMode = options.captureMode ?? "none";
+      let screenshotBlobHeadless: Blob | null = null;
+
+      if (captureMode === "screenshot") {
+        try {
+          const artifacts = await reporter.captureScreenshot();
+          screenshotBlobHeadless = artifacts.screenshotBlob;
+        } catch {
+          // continue without screenshot
+        }
+      }
+
+      const extras = collectSubmissionExtras();
+
+      try {
+        // For headless mode, we need artifacts. Create a minimal one if we don't have any.
+        if (!reporter.getLastArtifacts()) {
+          // Trigger a minimal screenshot capture to create artifacts, but skip if mode is "none"
+          if (captureMode !== "screenshot" && captureMode !== "none") {
+            await reporter.captureScreenshot().catch(() => {});
+          }
+        }
+
+        const result = await reporter.submit(
+          options.title,
+          options.description ?? "",
+          {
+            screenshotBlob: screenshotBlobHeadless,
+            consoleLogs: extras.consoleLogs,
+            jsErrors: extras.jsErrors,
+            breadcrumbs: extras.breadcrumbs,
+            user: extras.user,
+          },
+        );
+
+        return {
+          success: true,
+          reportId: result.issueId,
+          externalIssueUrl: result.issueUrl,
+        };
+      } catch {
+        return { success: false, reportId: "", externalIssueUrl: null };
+      }
+    },
+    [collectSubmissionExtras, getOrCreateReporter],
   );
 
   const value = useMemo<BugReporterContextValue>(
@@ -681,10 +818,12 @@ export function BugReporterProvider({
       clearDraft,
       submitReport,
       resetMessages,
+      captureAndSubmit,
     }),
     [
       autoStopNotice,
       availableProviders,
+      captureAndSubmit,
       captureQuickScreenshot,
       clearDraft,
       closeModal,

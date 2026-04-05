@@ -6,7 +6,7 @@ export const DEFAULT_MAX_RECORDING_MS = 2 * 60 * 1000;
 
 export type BugTrackerProvider = "linear" | "jira" | "cloud";
 
-export type ReportCaptureMode = "video" | "screenshot";
+export type ReportCaptureMode = "video" | "screenshot" | "none";
 
 export type RecordingStopReason = "manual" | "time_limit" | "screen_ended";
 
@@ -16,6 +16,32 @@ export type NetworkLogEntry = {
   status: number | null;
   durationMs: number;
   timestamp: string;
+  // SDK-04: opt-in body capture
+  requestBody?: string;
+  responseBody?: string;
+  requestHeaders?: Record<string, string>;
+};
+
+// SDK-03: User identity
+export interface UserIdentity {
+  id?: string;
+  email?: string;
+  name?: string;
+}
+
+// SDK-06: Breadcrumb types
+export type BreadcrumbType = "navigation" | "click" | "form_submit" | "console_error";
+
+export type BreadcrumbEntry = {
+  type: BreadcrumbType;
+  timestamp: string;
+  url?: string;
+  element?: string;
+  text?: string;
+  testId?: string;
+  action?: string;
+  method?: string;
+  message?: string;
 };
 
 export type ScreenshotHighlightRegion = {
@@ -101,13 +127,13 @@ export type BugSessionArtifacts = {
 export type BugReportPayload = {
   title: string;
   description: string; // Legacy/concatenated field for backward compatibility
-  
+
   // Structured fields (optional, concatenated into description for legacy support)
   stepsToReproduce?: string;
   expectedResult?: string;
   actualResult?: string;
   additionalContext?: string;
-  
+
   videoBlob: Blob | null;
   screenshotBlob: Blob | null;
   networkLogs: NetworkLogEntry[];
@@ -120,6 +146,14 @@ export type BugReportPayload = {
   stoppedAt: string;
   elapsedMs: number;
   metadata: BugClientMetadata;
+  // SDK-01
+  captureHasMic?: boolean;
+  // SDK-03
+  user?: UserIdentity;
+  // SDK-05
+  customMetadata?: Record<string, string | number | boolean | null>;
+  // SDK-06
+  breadcrumbs?: BreadcrumbEntry[];
 };
 
 export type BugSubmitResult = {
@@ -178,7 +212,14 @@ export function formatNetworkLogs(logs: NetworkLogEntry[]): string {
   return logs
     .map((entry) => {
       const status = entry.status === null ? "FAILED" : String(entry.status);
-      return `[${entry.timestamp}] ${entry.method.toUpperCase()} ${entry.url} -> ${status} (${entry.durationMs}ms)`;
+      const lines = [`[${entry.timestamp}] ${entry.method.toUpperCase()} ${entry.url} -> ${status} (${entry.durationMs}ms)`];
+      if (entry.requestBody) {
+        lines.push(`  Request Body: ${entry.requestBody}`);
+      }
+      if (entry.responseBody) {
+        lines.push(`  Response Body: ${entry.responseBody}`);
+      }
+      return lines.join("\n");
     })
     .join("\n");
 }
