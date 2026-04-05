@@ -120,7 +120,7 @@ const CSS = `
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 100%;
+  width: calc(100% - 3rem);
   max-width: 32rem;
   max-height: 90vh;
   overflow-y: auto;
@@ -128,6 +128,7 @@ const CSS = `
   border-radius: 0.75rem;
   box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
   padding: 1.5rem;
+  box-sizing: border-box;
 }
 
 .qb-modal-title {

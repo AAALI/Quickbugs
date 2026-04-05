@@ -273,30 +273,53 @@ export class CloudIntegration implements BugReporterIntegration {
   ): Record<string, string | number | boolean | null> {
     const result: Record<string, string | number | boolean | null> = { ...(payloadMeta ?? {}) };
 
-    let keyCount = Object.keys(result).length;
+    let currentKeyCount = Object.keys(result).length;
     for (const [key, fn] of Object.entries(this.metadataHooks)) {
-      if (keyCount >= MAX_METADATA_KEYS) break;
+      if (currentKeyCount >= MAX_METADATA_KEYS) break;
       try {
+        const alreadyExists = key in result;
         result[key] = fn();
-        keyCount++;
+        if (!alreadyExists) {
+          currentKeyCount++;
+        }
       } catch {
         console.warn(`[QuickBugs] metadata hook "${key}" threw — skipping.`);
       }
     }
 
-    // Enforce size limit
+    // Trim to MAX_METADATA_KEYS if needed (preserve payload keys first)
+    const finalKeys = Object.keys(result);
+    if (finalKeys.length > MAX_METADATA_KEYS) {
+      const payloadKeys = Object.keys(payloadMeta ?? {});
+      const hookKeys = finalKeys.filter(k => !payloadKeys.includes(k));
+      const keysToKeep = [...payloadKeys.slice(0, MAX_METADATA_KEYS), ...hookKeys].slice(0, MAX_METADATA_KEYS);
+      const trimmed: Record<string, string | number | boolean | null> = {};
+      for (const k of keysToKeep) {
+        if (k in result) trimmed[k] = result[k];
+      }
+      Object.assign(result, {}); // clear
+      Object.assign(result, trimmed);
+    }
+
+    // Enforce size limit using UTF-8 byte counts
+    const encoder = new TextEncoder();
     const serialized = JSON.stringify(result);
-    if (serialized.length > MAX_METADATA_BYTES) {
+    const serializedBytes = encoder.encode(serialized).length;
+    if (serializedBytes > MAX_METADATA_BYTES) {
       console.warn(`[QuickBugs] custom_metadata exceeds ${MAX_METADATA_BYTES} bytes — truncating.`);
       // Keep what fits
       const truncated: Record<string, string | number | boolean | null> = {};
-      let size = 2; // {}
+      const emptyObjectBytes = encoder.encode("{}").length;
+      const commaBytes = encoder.encode(",").length;
+      let size = emptyObjectBytes;
       for (const [key, value] of Object.entries(result)) {
-        const entry = JSON.stringify({ [key]: value });
-        const entrySize = entry.length - 2; // minus {}
-        if (size + entrySize + 1 > MAX_METADATA_BYTES) break;
+        const entryStr = JSON.stringify({ [key]: value });
+        const entryBytes = encoder.encode(entryStr).length;
+        const entrySize = entryBytes - emptyObjectBytes;
+        const separator = Object.keys(truncated).length > 0 ? commaBytes : 0;
+        if (size + entrySize + separator > MAX_METADATA_BYTES) break;
         truncated[key] = value;
-        size += entrySize + 1;
+        size += entrySize + separator;
       }
       return truncated;
     }

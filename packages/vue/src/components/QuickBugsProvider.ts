@@ -130,7 +130,7 @@ export const QuickBugsProvider = defineComponent({
       if (config === false) return;
       breadcrumbCapture = new BreadcrumbCapture(typeof config === "object" ? config : {});
       breadcrumbCapture.start();
-    }, { immediate: true });
+    }, { immediate: true, deep: true });
 
     onUnmounted(() => { breadcrumbCapture?.stop(); breadcrumbCapture = null; });
 
@@ -316,11 +316,19 @@ export const QuickBugsProvider = defineComponent({
       }
       const extras = collectSubmissionExtras();
       try {
-        if (!r.getLastArtifacts() && captureMode !== "screenshot") await r.captureScreenshot().catch(() => {});
-        const result = await r.submit(options.title, options.description ?? "", {
-          screenshotBlob: screenshotBlobHeadless,
-          consoleLogs: extras.consoleLogs, jsErrors: extras.jsErrors, breadcrumbs: extras.breadcrumbs, user: extras.user,
-        });
+        if (!r.getLastArtifacts() && captureMode !== "screenshot" && captureMode !== "none") {
+          await r.captureScreenshot().catch(() => {});
+        }
+        const submitOptions: any = {
+          consoleLogs: extras.consoleLogs,
+          jsErrors: extras.jsErrors,
+          breadcrumbs: extras.breadcrumbs,
+          user: extras.user,
+        };
+        if (captureMode !== "none") {
+          submitOptions.screenshotBlob = screenshotBlobHeadless;
+        }
+        const result = await r.submit(options.title, options.description ?? "", submitOptions);
         return { success: true, reportId: result.issueId, externalIssueUrl: result.issueUrl };
       } catch { return { success: false, reportId: "", externalIssueUrl: null }; }
     }

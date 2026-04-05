@@ -15,6 +15,10 @@ function truncateText(text: string): string {
   return trimmed.length > MAX_TEXT_LENGTH ? trimmed.slice(0, MAX_TEXT_LENGTH) + "…" : trimmed;
 }
 
+function isInsideQuickBugs(target: HTMLElement): boolean {
+  return target.closest('[data-bug-reporter-ui="true"], [data-quickbugs], .quickbugs, #quickbugs-root') !== null;
+}
+
 export class BreadcrumbCapture {
   private entries: BreadcrumbEntry[] = [];
   private maxEntries: number;
@@ -45,6 +49,7 @@ export class BreadcrumbCapture {
       this.clickHandler = (e: MouseEvent) => {
         const target = e.target;
         if (!(target instanceof HTMLElement)) return;
+        if (isInsideQuickBugs(target)) return;
 
         const tag = target.tagName.toLowerCase();
         const text = target.textContent ? truncateText(target.textContent) : undefined;
@@ -85,6 +90,7 @@ export class BreadcrumbCapture {
       this.submitHandler = (e: SubmitEvent) => {
         const form = e.target;
         if (!(form instanceof HTMLFormElement)) return;
+        if (isInsideQuickBugs(form)) return;
 
         this.push({
           type: "form_submit",

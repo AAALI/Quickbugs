@@ -179,7 +179,10 @@ export class BugSession {
 
   private async handleForcedStop(reason: Exclude<RecordingStopReason, "manual">): Promise<void> {
     const artifacts = await this.stop(reason);
-    if (artifacts && this.onAutoStop) this.onAutoStop(artifacts);
+    // Only invoke onAutoStop if the stop reason matches (wasn't a manual stop)
+    if (artifacts && artifacts.stopReason === reason && this.onAutoStop) {
+      this.onAutoStop(artifacts);
+    }
   }
 
   private clearAutoStopTimer(): void {

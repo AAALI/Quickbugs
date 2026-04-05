@@ -66,6 +66,39 @@ function applyPrivacyToClone(doc: Document, privacy: ScreenshotPrivacyOptions): 
   if (privacy.blockSelectors) {
     for (const selector of privacy.blockSelectors) {
       for (const el of doc.querySelectorAll<HTMLElement>(selector)) {
+        const tagName = el.tagName.toLowerCase();
+
+        // Handle replaced elements
+        if (tagName === "img") {
+          el.removeAttribute("src");
+          el.removeAttribute("srcset");
+        } else if (tagName === "video") {
+          const video = el as HTMLVideoElement;
+          video.pause();
+          video.removeAttribute("src");
+          video.removeAttribute("poster");
+          const sources = video.querySelectorAll("source");
+          sources.forEach(s => s.remove());
+        } else if (tagName === "audio") {
+          const audio = el as HTMLAudioElement;
+          audio.pause();
+          audio.removeAttribute("src");
+          const sources = audio.querySelectorAll("source");
+          sources.forEach(s => s.remove());
+        } else if (tagName === "canvas") {
+          const canvas = el as HTMLCanvasElement;
+          const ctx = canvas.getContext("2d");
+          if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        } else if (tagName === "input" || tagName === "textarea") {
+          (el as HTMLInputElement | HTMLTextAreaElement).value = "";
+        } else if (tagName === "select") {
+          (el as HTMLSelectElement).selectedIndex = -1;
+        }
+
+        // Remove background images
+        el.style.setProperty("background-image", "none", "important");
+
+        // Apply blocking styles
         el.style.setProperty("background", "#808080", "important");
         el.style.setProperty("color", "transparent", "important");
         el.innerHTML = "";

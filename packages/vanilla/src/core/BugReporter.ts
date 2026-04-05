@@ -59,25 +59,34 @@ export class BugReporter {
     if (this.isRecording()) await this.stop();
 
     const artifacts = this.session.getLastArtifacts();
-    if (!artifacts) throw new Error("Capture a screenshot or record and stop a bug session before submitting.");
+    // Allow submission without artifacts if explicitly requesting no capture
+    const isNoCaptureMode = options.metadata?.captureMode === "none";
+    if (!artifacts && !isNoCaptureMode) throw new Error("Capture a screenshot or record and stop a bug session before submitting.");
 
     const normalizedTitle = title.trim();
     if (!normalizedTitle) throw new Error("A bug title is required.");
 
     const normalizedDescription = description.trim() || "No additional details provided.";
 
+    // Handle "none" mode with minimal artifacts
+    const now = new Date().toISOString();
+    const captureMode = artifacts?.captureMode ?? "none";
     const metadata: BugClientMetadata = {
       ...collectClientEnvironmentMetadata(),
-      captureMode: artifacts.captureMode,
-      capture: {
+      captureMode,
+      capture: artifacts ? {
         startedAt: artifacts.startedAt,
         stoppedAt: artifacts.stoppedAt,
         elapsedMs: artifacts.elapsedMs,
+      } : {
+        startedAt: now,
+        stoppedAt: now,
+        elapsedMs: 0,
       },
       ...(options.metadata || {}),
     };
 
-    const captureHasMic = this.session.getCaptureHasMic();
+    const captureHasMic = artifacts ? this.session.getCaptureHasMic() : false;
 
     const payload = {
       title: normalizedTitle,
@@ -86,17 +95,17 @@ export class BugReporter {
       expectedResult: options.expectedResult,
       actualResult: options.actualResult,
       additionalContext: options.additionalContext,
-      videoBlob: artifacts.videoBlob,
-      screenshotBlob: options.screenshotBlob ?? artifacts.screenshotBlob,
-      networkLogs: this.session.finalizeNetworkLogsForSubmit(artifacts.captureMode),
+      videoBlob: artifacts?.videoBlob ?? null,
+      screenshotBlob: options.screenshotBlob ?? artifacts?.screenshotBlob ?? null,
+      networkLogs: artifacts ? this.session.finalizeNetworkLogsForSubmit(artifacts.captureMode) : [],
       consoleLogs: options.consoleLogs ?? [],
       jsErrors: options.jsErrors ?? [],
-      captureMode: artifacts.captureMode,
+      captureMode,
       pageUrl: typeof window !== "undefined" ? window.location.href : "",
       userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "",
-      startedAt: artifacts.startedAt,
-      stoppedAt: artifacts.stoppedAt,
-      elapsedMs: artifacts.elapsedMs,
+      startedAt: artifacts?.startedAt ?? now,
+      stoppedAt: artifacts?.stoppedAt ?? now,
+      elapsedMs: artifacts?.elapsedMs ?? 0,
       metadata,
       captureHasMic,
       user: options.user,
