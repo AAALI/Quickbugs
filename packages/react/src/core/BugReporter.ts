@@ -1,5 +1,5 @@
 import { BugSession } from "./BugSession";
-import { CaptureRegion } from "./ScreenshotCapturer";
+import { CaptureRegion, type ScreenshotPrivacyOptions } from "./ScreenshotCapturer";
 import type { ConsoleLogEntry, CapturedJsError, BreadcrumbEntry, UserIdentity } from "@quick-bug-reporter/core";
 import {
   BugClientMetadata,
@@ -17,6 +17,7 @@ type BugReporterOptions = {
   maxDurationMs?: number;
   onAutoStop?: (artifacts: BugSessionArtifacts) => void;
   session?: BugSession;
+  privacy?: ScreenshotPrivacyOptions;
 };
 
 type BugReporterSubmitOptions = {
@@ -47,6 +48,7 @@ export class BugReporter {
       new BugSession({
         maxDurationMs: options.maxDurationMs ?? DEFAULT_MAX_RECORDING_MS,
         onAutoStop: options.onAutoStop,
+        privacy: options.privacy,
       });
   }
 

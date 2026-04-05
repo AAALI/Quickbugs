@@ -1,4 +1,4 @@
-import { defineComponent, ref, computed, h, Teleport } from "vue";
+import { defineComponent, ref, computed, h, Teleport, onMounted, onUnmounted, nextTick } from "vue";
 import type { BugTrackerProvider } from "@quick-bug-reporter/core";
 import { useQuickBugs } from "../composables/useQuickBugs";
 
@@ -62,6 +62,8 @@ export const BugReporterModal = defineComponent({
     const additionalContext = ref("");
     const step = ref<"review" | "context">("review");
     const activeTab = ref<"steps" | "expected" | "actual" | "context">("steps");
+    const dialogRef = ref<HTMLElement | null>(null);
+    const previousActiveElement = ref<HTMLElement | null>(null);
 
     const totalChars = computed(() => stepsToReproduce.value.length + expectedResult.value.length + actualResult.value.length + additionalContext.value.length);
     const isOverLimit = computed(() => totalChars.value > CHAR_LIMIT);
@@ -90,13 +92,88 @@ export const BugReporterModal = defineComponent({
     }
 
     /**
- * Closes the bug reporter modal and resets the flow to the initial "review" step.
- */
-function handleClose() { ctx.closeModal(); step.value = "review"; }
+     * Closes the bug reporter modal and resets the flow to the initial "review" step.
+     */
+    function handleClose() {
+      ctx.closeModal();
+      step.value = "review";
+      if (previousActiveElement.value) {
+        previousActiveElement.value.focus();
+        previousActiveElement.value = null;
+      }
+    }
+
     /**
- * Discards the current capture draft, clears status messages, closes the bug reporter modal, and resets the flow to the review step.
- */
-function handleDiscard() { ctx.clearDraft(); ctx.resetMessages(); ctx.closeModal(); step.value = "review"; }
+     * Discards the current capture draft, clears status messages, closes the bug reporter modal, and resets the flow to the review step.
+     */
+    function handleDiscard() {
+      ctx.clearDraft();
+      ctx.resetMessages();
+      ctx.closeModal();
+      title.value = "";
+      stepsToReproduce.value = "";
+      expectedResult.value = "";
+      actualResult.value = "";
+      additionalContext.value = "";
+      step.value = "review";
+      activeTab.value = "steps";
+      if (previousActiveElement.value) {
+        previousActiveElement.value.focus();
+        previousActiveElement.value = null;
+      }
+    }
+
+    function handleKeydown(e: KeyboardEvent) {
+      if (e.key === "Escape" && !ctx.isSubmitting.value) {
+        handleClose();
+      } else if (e.key === "Tab") {
+        trapFocus(e);
+      }
+    }
+
+    function trapFocus(e: KeyboardEvent) {
+      if (!dialogRef.value) return;
+      const focusableElements = dialogRef.value.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+      );
+      const focusableArray = Array.from(focusableElements).filter(el => !el.hasAttribute("disabled"));
+      if (focusableArray.length === 0) return;
+
+      const firstFocusable = focusableArray[0];
+      const lastFocusable = focusableArray[focusableArray.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstFocusable) {
+          lastFocusable.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastFocusable) {
+          firstFocusable.focus();
+          e.preventDefault();
+        }
+      }
+    }
+
+    onMounted(() => {
+      if (ctx.isOpen.value) {
+        previousActiveElement.value = document.activeElement as HTMLElement;
+        nextTick(() => {
+          if (dialogRef.value) {
+            const firstFocusable = dialogRef.value.querySelector<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            firstFocusable?.focus();
+          }
+        });
+      }
+    });
+
+    onUnmounted(() => {
+      if (previousActiveElement.value) {
+        previousActiveElement.value.focus();
+      }
+    });
 
     /**
      * Create a tab button that switches the active bug-detail tab.
@@ -136,10 +213,30 @@ function handleDiscard() { ctx.clearDraft(); ctx.resetMessages(); ctx.closeModal
         ? renderReview()
         : renderContext();
 
+      // Focus management on open
+      if (ctx.isOpen.value && !previousActiveElement.value) {
+        previousActiveElement.value = document.activeElement as HTMLElement;
+        nextTick(() => {
+          if (dialogRef.value) {
+            const firstFocusable = dialogRef.value.querySelector<HTMLElement>(
+              'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            firstFocusable?.focus();
+          }
+        });
+      }
+
       return h(Teleport, { to: "body" },
         h("div", { "data-bug-reporter-ui": "true", style: S.overlay }, [
           h("div", { style: S.backdrop, onClick: () => { if (!ctx.isSubmitting.value) handleClose(); } }),
-          h("div", { style: S.dialog }, [
+          h("div", {
+            ref: dialogRef,
+            role: "dialog",
+            "aria-modal": "true",
+            "aria-labelledby": "bug-modal-title",
+            style: S.dialog,
+            onKeydown: handleKeydown,
+          }, [
             h("form", { style: S.form, onSubmit: handleSubmit }, content),
           ]),
         ])
@@ -158,7 +255,7 @@ function handleDiscard() { ctx.clearDraft(); ctx.resetMessages(); ctx.closeModal
     function renderReview(): ReturnType<typeof h>[] {
       const nodes: ReturnType<typeof h>[] = [
         h("div", {}, [
-          h("h2", { style: S.title }, "Review capture"),
+          h("h2", { id: "bug-modal-title", style: S.title }, "Review capture"),
           h("p", { style: S.sub }, `Step 1 of 2. Review your ${ctx.draftMode.value === "video" ? "video" : "screenshot"}, or retake.`),
         ]),
       ];
@@ -224,7 +321,7 @@ function handleDiscard() { ctx.clearDraft(); ctx.resetMessages(); ctx.closeModal
     function renderContext(): ReturnType<typeof h>[] {
       const nodes: ReturnType<typeof h>[] = [
         h("div", {}, [
-          h("h2", { style: S.title }, "Add context"),
+          h("h2", { id: "bug-modal-title", style: S.title }, "Add context"),
           h("p", { style: S.sub }, "Step 2 of 2. Describe the issue and submit. Metadata and network logs are attached automatically."),
         ]),
         h("div", { style: "display: flex; flex-direction: column; gap: 1rem;" }, [

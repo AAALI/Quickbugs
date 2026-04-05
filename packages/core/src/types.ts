@@ -6,7 +6,7 @@ export const DEFAULT_MAX_RECORDING_MS = 2 * 60 * 1000;
 
 export type BugTrackerProvider = "linear" | "jira" | "cloud";
 
-export type ReportCaptureMode = "video" | "screenshot";
+export type ReportCaptureMode = "video" | "screenshot" | "none";
 
 export type RecordingStopReason = "manual" | "time_limit" | "screen_ended";
 
