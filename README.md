@@ -139,7 +139,7 @@ export default function App() {
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
 │  Your App                                            │
 │  ┌────────────────────────────────────────────────┐ │
@@ -186,8 +186,8 @@ export default function App() {
 ### Local Setup
 
 ```bash
-git clone https://github.com/AAALI/quickbugs-sdk.git
-cd quickbugs-sdk
+git clone https://github.com/AAALI/Quickbugs.git
+cd Quickbugs
 pnpm install
 
 # Build all packages

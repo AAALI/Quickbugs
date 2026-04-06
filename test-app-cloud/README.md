@@ -5,6 +5,8 @@ Test app connected directly to **QuickBugs Cloud** (Cloudflare deployment). No l
 ## Setup
 
 ```bash
+cp .env.example .env
+# Fill in VITE_QUICKBUGS_PROJECT_KEY and VITE_QUICKBUGS_ENDPOINT in .env
 pnpm dev
 ```
 
