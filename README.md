@@ -8,29 +8,31 @@
 
 ---
 
-## ✨ Features
+## Features
 
-- **📸 Screenshot Capture** — Full-page or region selection with annotation
-- **🎥 Screen Recording** — Screen + microphone via MediaRecorder API
-- **🔍 Auto Diagnostics** — Captures console logs, JS errors, network requests
-- **📝 Structured Reports** — Guided UI for Steps/Expected/Actual/Context
-- **🚀 Zero Config** — Drop-in `<FloatingBugButton />` component
-- **🔌 Multiple Integrations** — Jira, Linear, custom backends, or QuickBugs Cloud
-- **🎨 Tailwind Compatible** — Works with Tailwind v3, v4, or no framework
-- **📦 Framework Agnostic Core** — React wrapper + headless core (Vue/Svelte coming soon)
+- **Screenshot Capture** — Full-page or region selection with annotation
+- **Screen Recording** — Screen + microphone via MediaRecorder API
+- **Auto Diagnostics** — Captures console logs, JS errors, network requests
+- **Structured Reports** — Guided UI for Steps/Expected/Actual/Context
+- **Zero Config** — Drop-in `<FloatingBugButton />` component
+- **Multiple Integrations** — Jira, Linear, custom backends, or QuickBugs Cloud
+- **Tailwind Compatible** — Works with Tailwind v3, v4, or no framework
+- **Multi-Framework** — React, Vue 3, and vanilla JS packages
 
 ---
 
-## 📦 Packages
+## Packages
 
 | Package | npm | Description |
 |---------|-----|-------------|
-| **`@/packages/react`** | `quick-bug-reporter-react` | React components + hooks |
-| **`@/packages/core`** | `quick-bug-reporter-core` | Framework-agnostic capture engine |
+| [`packages/react`](./packages/react) | [`quick-bug-reporter-react`](https://www.npmjs.com/package/quick-bug-reporter-react) | React components + hooks |
+| [`packages/vue`](./packages/vue) | [`quick-bug-reporter-vue`](https://www.npmjs.com/package/quick-bug-reporter-vue) | Vue 3 composable wrapper |
+| [`packages/vanilla`](./packages/vanilla) | [`quick-bug-reporter`](https://www.npmjs.com/package/quick-bug-reporter) | Vanilla JS / script tag |
+| [`packages/core`](./packages/core) | [`@quick-bug-reporter/core`](https://www.npmjs.com/package/@quick-bug-reporter/core) | Framework-agnostic capture engine |
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### 1. Install
 
@@ -46,11 +48,11 @@ pnpm add quick-bug-reporter-react
 <summary><strong>Option A: Direct Jira Integration (No Backend Required)</strong></summary>
 
 ```tsx
-import { 
-  BugReporterProvider, 
-  FloatingBugButton, 
+import {
+  BugReporterProvider,
+  FloatingBugButton,
   BugReporterModal,
-  JiraIntegration 
+  JiraIntegration
 } from 'quick-bug-reporter-react'
 import 'quick-bug-reporter-react/styles.css'
 
@@ -71,7 +73,7 @@ export default function App() {
 }
 ```
 
-**Proxy Setup:** See `@/packages/react/README.md` for complete Jira/Linear proxy examples.
+**Proxy Setup:** See [`packages/react/README.md`](./packages/react/README.md) for complete Jira/Linear proxy examples.
 
 </details>
 
@@ -125,21 +127,21 @@ export default function App() {
 
 ---
 
-## 📚 Documentation
+## Documentation
 
 - **[React Package README](./packages/react/README.md)** — Full API, all integrations, proxy setup
 - **[Core Package README](./packages/core/README.md)** — Headless usage, custom integrations
 - **Examples:**
-  - `@/test-app-tw3` — Vite + React + Tailwind v3 + Local proxy
-  - `@/test-app-cloud` — Cloud integration example
+  - [`test-app-tailwind3`](./test-app-tailwind3) — Vite + React + Tailwind v3 + local proxy
+  - [`test-app-cloud`](./test-app-cloud) — Cloud integration example
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────┐
-│  Your React App                                      │
+│  Your App                                            │
 │  ┌────────────────────────────────────────────────┐ │
 │  │ <BugReporterProvider>                          │ │
 │  │   <FloatingBugButton />  (triggers capture)    │ │
@@ -149,14 +151,14 @@ export default function App() {
               │
               ▼
 ┌─────────────────────────────────────────────────────┐
-│  quick-bug-reporter-react                            │
-│  • FloatingBugButton, BugReporterModal (UI)         │
+│  quick-bug-reporter-react / vue / vanilla            │
+│  • UI components + framework bindings               │
 │  • JiraIntegration, LinearIntegration, Cloud        │
 └─────────────────────────────────────────────────────┘
               │
               ▼
 ┌─────────────────────────────────────────────────────┐
-│  quick-bug-reporter-core                             │
+│  @quick-bug-reporter/core                            │
 │  • BugReporter (orchestration)                      │
 │  • ScreenshotCapturer (html2canvas-pro)             │
 │  • ScreenRecorder (MediaRecorder API)               │
@@ -174,48 +176,39 @@ export default function App() {
 
 ---
 
-## 🛠️ Development
+## Development
 
 ### Prerequisites
 
 - Node.js 18+
-- pnpm 8+
+- pnpm 10+
 
 ### Local Setup
 
 ```bash
-# Clone and install
-git clone https://github.com/yourusername/quickbugs-sdk.git
-cd quickbugs-sdk
+git clone https://github.com/AAALI/Quickbugs.git
+cd Quickbugs
 pnpm install
 
-# Build packages
-pnpm build
-
-# Run test app (auto-rebuilds on changes)
-cd test-app-tw3
-pnpm dev
-```
-
-### Package Scripts
-
-```bash
 # Build all packages
 pnpm build
 
-# Watch mode (auto-rebuild on save)
+# Run test app
+cd test-app-tailwind3
 pnpm dev
+```
 
-# Type checking
-pnpm typecheck
+### Monorepo Scripts
 
-# Lint
-pnpm lint
+```bash
+pnpm build       # Build all packages
+pnpm dev         # Watch mode (auto-rebuild)
+pnpm typecheck   # Type checking
 ```
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! Please:
 
@@ -225,28 +218,12 @@ Contributions welcome! Please:
 4. Push to branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-**Code Style:** We use TypeScript strict mode + ESLint. Run `pnpm lint` before committing.
-
 ---
 
-## 📄 License
+## License
 
 MIT — see [LICENSE](./LICENSE)
 
----
-
-## 🔐 Security
+## Security
 
 See [SECURITY.md](./SECURITY.md) for vulnerability reporting.
-
----
-
-## 🌐 QuickBugs Platform
-
-The QuickBugs platform ([quickbugs.com](https://quickbugs.com)) is a commercial SaaS offering:
-- Centralized bug dashboard
-- AI-powered summaries and triaging
-- Release analytics and trends
-- Team collaboration features
-
-**This SDK is 100% open-source and can be used independently with direct Jira/Linear integrations.**
