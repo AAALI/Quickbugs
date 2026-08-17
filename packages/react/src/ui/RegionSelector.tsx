@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { CaptureRegion } from "../core/ScreenshotCapturer";
+import type { CaptureRegion } from "@quick-bug-reporter/core";
 
 type RegionSelectorProps = {
   onSelect: (region: CaptureRegion) => void;

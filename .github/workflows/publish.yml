@@ -6,25 +6,38 @@ on:
       - 'sdk-v*'
 
 jobs:
-  build-and-publish:
+  publish:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
-          version: 8
+          version: 10
 
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
+          cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
 
-      - name: Build all packages
+      # A tag push must clear the same bar as a pull request. Publishing is the
+      # one action that cannot be rolled back — npm versions are immutable.
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
         run: pnpm build
+
+      - name: Verify package contents
+        run: pnpm verify:packaging
 
       - name: Publish to npm
         run: pnpm -r publish --access public --no-git-checks

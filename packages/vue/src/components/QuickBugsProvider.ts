@@ -11,8 +11,8 @@ import {
   h,
   type PropType,
 } from "vue";
-import { BugReporter } from "../core/BugReporter";
-import type { CaptureRegion } from "../core/ScreenshotCapturer";
+import { BugReporter } from "@quick-bug-reporter/core";
+import type { CaptureRegion } from "@quick-bug-reporter/core";
 import {
   BreadcrumbCapture,
   ConsoleCapture,

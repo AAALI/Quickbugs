@@ -1,16 +1,24 @@
 {
-  "name": "quick-bug-reporter",
+  "name": "quickbugs-sdk-monorepo",
   "private": true,
-  "description": "Bug reporter SDK monorepo — web (React, Vue, Vanilla)",
+  "description": "Bug reporter SDK monorepo \u2014 web (React, Vue, Vanilla)",
   "author": "Ali Abdulkadir Ali",
   "license": "MIT",
   "scripts": {
     "build": "turbo run build",
+    "dev": "turbo run dev",
     "typecheck": "turbo run typecheck",
-    "dev": "turbo run dev"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "verify:packaging": "node scripts/verify-packaging.mjs",
+    "verify": "pnpm typecheck && pnpm test && pnpm build && pnpm verify:packaging"
   },
   "packageManager": "pnpm@10.14.0",
   "devDependencies": {
-    "turbo": "^2.5.0"
+    "@vitest/coverage-v8": "^3.2.7",
+    "jsdom": "^25.0.1",
+    "turbo": "^2.5.0",
+    "vitest": "^3.2.7"
   }
 }
