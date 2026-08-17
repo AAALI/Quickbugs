@@ -11,3 +11,5 @@ dist/
 .vscode/
 _platform-export/
 package-lock.json
+.strategy/
+coverage/

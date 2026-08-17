@@ -14,6 +14,7 @@
 - **Screen Recording** — Screen + microphone via MediaRecorder API
 - **Auto Diagnostics** — Captures console logs, JS errors, network requests
 - **Structured Reports** — Guided UI for Steps/Expected/Actual/Context
+- **Private by Default** — Passwords, one-time codes, and payment fields are masked with no configuration
 - **Zero Config** — Drop-in `<FloatingBugButton />` component
 - **Multiple Integrations** — Jira, Linear, custom backends, or QuickBugs Cloud
 - **Tailwind Compatible** — Works with Tailwind v3, v4, or no framework
@@ -137,7 +138,49 @@ export default function App() {
 
 ---
 
+## Privacy
+
+Sensitive fields are masked before a screenshot is ever encoded, with no
+configuration required:
+
+| Masked by default | Why |
+|---|---|
+| `input[type="password"]`, current/new password fields | Credentials |
+| `input[autocomplete="one-time-code"]` | MFA codes |
+| `input[autocomplete^="cc-"]`, card number / CVV / CVC fields | Payment instruments |
+| Stripe payment iframes | Cross-origin content we cannot inspect |
+
+Credential-bearing URL parameters (`access_token`, `api_key`, `code`, signed-URL
+signatures, and OAuth `#access_token=` fragments) are stripped from network
+logs, the reported page URL, and any tracker issue description.
+
+Request and response bodies are **not captured at all** unless you opt in, and
+authentication endpoints are never body-captured regardless of configuration.
+
+```tsx
+const cloud = new CloudIntegration({
+  projectKey: 'your-project-key',
+  privacy: {
+    // Added to the built-in defaults — never replaces them.
+    maskSelectors: ['.customer-address'],
+    blockSelectors: ['.internal-notes'],
+    redactLogKeys: ['accountNumber'],
+    urlDepth: 2, // /users/12345/orders/98765 → /users/.../
+  },
+})
+```
+
+Mark elements inline without touching config:
+
+```html
+<div data-quickbugs-mask>Blurred in screenshots</div>
+<div data-quickbugs-block>Replaced with a placeholder</div>
+```
+
 ## Architecture
+
+The capture engine lives in one place. The framework packages are thin bindings
+over it — they must not fork it.
 
 ```text
 ┌─────────────────────────────────────────────────────┐
@@ -152,17 +195,19 @@ export default function App() {
               ▼
 ┌─────────────────────────────────────────────────────┐
 │  quick-bug-reporter-react / vue / vanilla            │
-│  • UI components + framework bindings               │
-│  • JiraIntegration, LinearIntegration, Cloud        │
+│  • UI components + framework bindings only          │
+│  • Re-exports the engine below; owns no capture code│
 └─────────────────────────────────────────────────────┘
               │
               ▼
 ┌─────────────────────────────────────────────────────┐
 │  @quick-bug-reporter/core                            │
-│  • BugReporter (orchestration)                      │
-│  • ScreenshotCapturer (html2canvas-pro)             │
-│  • ScreenRecorder (MediaRecorder API)               │
-│  • NetworkLogger, ConsoleCapture                    │
+│  • BugReporter, BugSession   (orchestration)        │
+│  • ScreenshotCapturer        (html2canvas-pro)      │
+│  • ScreenRecorder            (MediaRecorder API)    │
+│  • NetworkLogger, ConsoleCapture, BreadcrumbCapture │
+│  • privacy                   (masking + redaction)  │
+│  • Jira / Linear / Cloud integrations               │
 └─────────────────────────────────────────────────────┘
               │
               ▼
@@ -201,10 +246,25 @@ pnpm dev
 ### Monorepo Scripts
 
 ```bash
-pnpm build       # Build all packages
-pnpm dev         # Watch mode (auto-rebuild)
-pnpm typecheck   # Type checking
+pnpm build             # Build all packages
+pnpm dev               # Watch mode (auto-rebuild)
+pnpm typecheck         # Type checking
+pnpm test              # Run the test suite
+pnpm test:watch        # Tests in watch mode
+pnpm test:coverage     # Tests with coverage report
+pnpm verify:packaging  # Pack each package, fail on a missing entry point
+pnpm verify            # Everything CI runs, in one command
 ```
+
+Run `pnpm verify` before opening a pull request — it is the same gate CI
+applies.
+
+### Where to put a change
+
+The capture engine is shared. A fix to screenshots, recording, network logging,
+or privacy belongs in `packages/core` and reaches all three framework packages
+at once. `packages/react`, `packages/vue`, and `packages/vanilla` should contain
+only UI and framework bindings.
 
 ---
 

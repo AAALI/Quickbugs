@@ -14,7 +14,7 @@ import {
   type ReportCaptureMode,
   type UserIdentity,
 } from "@quick-bug-reporter/core";
-import { BugReporter } from "./core/BugReporter";
+import { BugReporter } from "@quick-bug-reporter/core";
 import { injectStyles } from "./styles";
 
 export type QuickBugsInitOptions = {

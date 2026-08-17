@@ -1,4 +1,4 @@
-import type { BugClientMetadata } from "@quick-bug-reporter/core";
+import type { BugClientMetadata } from "../types";
 
 export function collectClientEnvironmentMetadata(): Omit<BugClientMetadata, "captureMode" | "capture"> {
   if (typeof window === "undefined" || typeof navigator === "undefined") {

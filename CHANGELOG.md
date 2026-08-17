@@ -1,5 +1,70 @@
 # Changelog
 
+## [Unreleased] — SDK 1.6.0 / core 1.3.0
+
+First release since February 2026. Consolidates the capture engine, makes
+privacy defaults unconditional, and puts every change behind CI.
+
+### Privacy — safe by default
+
+Previously nothing was masked unless the integrator configured it, and captured
+URLs were never redacted at all.
+
+- Passwords, one-time codes, and payment fields are now blurred in screenshots
+  with **no configuration required** (`DEFAULT_MASK_SELECTORS`).
+- Credential-bearing query parameters and URL fragments are stripped from
+  network logs, the reported page URL, and tracker issue descriptions. OAuth
+  implicit-flow tokens in `#access_token=` are covered.
+- `data-quickbugs-mask` blurs an element; `data-quickbugs-block` replaces it.
+- The default body-redaction key list grew from three entries to eighteen.
+- Auth endpoints skipped for body capture now include `/signin`, `/session`,
+  and `/oauth`.
+- Redaction no longer mutates the caller's request body.
+
+**Behaviour change:** `redactBodyKeys` and `privacy.redactLogKeys` now *add* to
+the built-in defaults instead of replacing them, so a partial configuration can
+no longer widen what is captured. Pass `privacy.disableDefaultMasking: true` to
+opt out entirely — documented as unsafe.
+
+### Capture engine consolidated
+
+`BugReporter`, `BugSession`, `ScreenRecorder`, `ScreenshotCapturer`, and
+`WebMetadata` existed as three separate copies under the React, Vue, and vanilla
+packages, and had diverged — the three `ScreenRecorder` files were no longer the
+same code, and the vanilla copy had lost error mapping entirely, surfacing raw
+`NotAllowedError` instead of "Screen or microphone permission was denied."
+
+All three copies are replaced by one implementation in
+`@quick-bug-reporter/core`. The framework packages are now thin bindings that
+re-export it. **No public API changed** — every previously exported name is
+still exported from the same package.
+
+- `html2canvas-pro` moved from the three binding packages to `core`.
+
+### Packaging fixes
+
+- `quick-bug-reporter`: the `./cdn` export pointed at `dist/quickbugs.iife.js`,
+  but the build emitted `dist/quickbugs.iife.iife.js`. The CDN entry point did
+  not resolve in any published version.
+- `quick-bug-reporter-vue`: removed the `./styles.css` export, which pointed at
+  a file the build never produced. The Vue components style inline and need no
+  stylesheet.
+- `quick-bug-reporter-react`: `repository`, `homepage`, and `bugs` pointed at
+  `AAALI/bug-reporter-react`, which does not exist. All four packages now point
+  at `AAALI/Quickbugs`.
+
+### Engineering safety
+
+- Added a test suite: 92 tests covering privacy defaults and redaction, network
+  and console capture, session lifecycle, screenshot masking, and the request
+  payloads for Cloud, Jira, and Linear.
+- Added CI on every pull request: typecheck, test with coverage, build, and
+  packaging verification.
+- `pnpm verify:packaging` packs each package and fails if a declared entry point
+  is missing from the tarball. This is what caught the two packaging bugs above.
+- Publishing on a tag now runs the same gate. Previously a tag push published to
+  npm with no checks at all.
+
 ## [1.5.0] - 2026-02-16
 
 ### Added - Structured Bug Report Fields

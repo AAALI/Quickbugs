@@ -1,3 +1,4 @@
+import { type PrivacyOptions, type ResolvedPrivacy, redactUrl, resolvePrivacy } from "../privacy";
 import {
   BugReportPayload,
   BugReporterIntegration,
@@ -11,13 +12,7 @@ import {
 // SDK-05: Custom metadata hook type
 export type MetadataHook = () => string | number | boolean | null;
 
-// SDK-09: Privacy controls
-export type PrivacyOptions = {
-  maskSelectors?: string[];
-  blockSelectors?: string[];
-  redactLogKeys?: string[];
-  urlDepth?: number;
-};
+export type { PrivacyOptions } from "../privacy";
 
 export type CloudIntegrationOptions = {
   projectKey: string;
@@ -52,7 +47,7 @@ export class CloudIntegration implements BugReporterIntegration {
   private environment?: string;
   private fetchFn: typeof fetch;
   private metadataHooks: Record<string, MetadataHook>;
-  private privacy: PrivacyOptions;
+  private readonly privacy: ResolvedPrivacy;
 
   // Expose options for NetworkLogger to read
   readonly captureRequestBodies: boolean;
@@ -73,13 +68,16 @@ export class CloudIntegration implements BugReporterIntegration {
     this.captureRequestBodies = options.captureRequestBodies ?? false;
     this.captureResponseBodies = options.captureResponseBodies ?? false;
     this.maxBodySize = options.maxBodySize ?? 10_000;
-    this.redactBodyKeys = options.redactBodyKeys ?? ["password", "token", "authorization"];
     this.metadataHooks = options.metadata ?? {};
-    this.privacy = options.privacy ?? {};
+    this.privacy = resolvePrivacy({
+      ...options.privacy,
+      redactLogKeys: [...(options.privacy?.redactLogKeys ?? []), ...(options.redactBodyKeys ?? [])],
+    });
+    this.redactBodyKeys = this.privacy.redactLogKeys;
   }
 
-  /** SDK-09: Get privacy options for screenshot masking. */
-  getPrivacy(): PrivacyOptions {
+  /** Resolved privacy configuration, used by the capture layer for masking. */
+  getPrivacy(): ResolvedPrivacy {
     return this.privacy;
   }
 
@@ -127,7 +125,7 @@ export class CloudIntegration implements BugReporterIntegration {
     fd.set("locale", payload.metadata.locale ?? "");
     fd.set("timezone", payload.metadata.timezone ?? "");
     fd.set("connection_type", payload.metadata.connection?.effectiveType ?? "");
-    fd.set("page_url", payload.pageUrl || "");
+    fd.set("page_url", payload.pageUrl ? redactUrl(payload.pageUrl, this.privacy) : "");
     fd.set("environment", this.environment ?? getEnvironment());
     fd.set("app_version", this.appVersion ?? "");
     fd.set("platform", payload.metadata.platform ?? "");

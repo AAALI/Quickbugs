@@ -81,9 +81,29 @@ export { JiraIntegration, type JiraIntegrationOptions } from "@quick-bug-reporte
 export { CloudIntegration, type CloudIntegrationOptions } from "@quick-bug-reporter/core";
 export type { BugReporterIntegrations } from "@quick-bug-reporter/core";
 
-export { BugReporter } from "./core/BugReporter";
-export { BugSession } from "./core/BugSession";
-export { ScreenRecorder } from "./core/ScreenRecorder";
-export { ScreenshotCapturer } from "./core/ScreenshotCapturer";
-export type { CaptureRegion } from "./core/ScreenshotCapturer";
-export { collectClientEnvironmentMetadata } from "./core/WebMetadata";
+// Capture engine — single implementation, re-exported from the core package.
+export {
+  BugReporter,
+  BugSession,
+  ScreenRecorder,
+  ScreenshotCapturer,
+  collectClientEnvironmentMetadata,
+} from "@quick-bug-reporter/core";
+export type {
+  BugReporterOptions,
+  BugReporterSubmitOptions,
+  BugSessionOptions,
+  CaptureRegion,
+  ScreenshotPrivacyOptions,
+} from "@quick-bug-reporter/core";
+
+// Privacy controls and redaction helpers.
+export {
+  DEFAULT_BLOCK_SELECTORS,
+  DEFAULT_MASK_SELECTORS,
+  DEFAULT_REDACT_KEYS,
+  REDACTED,
+  redactUrl,
+  resolvePrivacy,
+} from "@quick-bug-reporter/core";
+export type { PrivacyOptions, ResolvedPrivacy } from "@quick-bug-reporter/core";

@@ -1,15 +1,38 @@
+import {
+  type PrivacyOptions,
+  type ResolvedPrivacy,
+  redactJson,
+  redactUrl,
+  resolvePrivacy,
+  truncate,
+} from "./privacy";
 import { NetworkLogEntry } from "./types";
 
 export type NetworkLoggerOptions = {
   captureRequestBodies?: boolean;
   captureResponseBodies?: boolean;
   maxBodySize?: number;
+  /**
+   * Body keys to redact, added to the built-in defaults.
+   *
+   * @deprecated Prefer `privacy.redactLogKeys`, which applies to URLs and
+   * screenshots too. Both are honoured.
+   */
   redactBodyKeys?: string[];
+  /** Privacy configuration merged over the built-in defaults. */
+  privacy?: PrivacyOptions;
 };
 
 const DEFAULT_MAX_BODY_SIZE = 10_000;
-const DEFAULT_REDACT_KEYS = ["password", "token", "authorization"];
-const AUTH_PATH_PATTERNS = ["/auth/", "/login", "/token"];
+
+/**
+ * Request paths whose bodies are never captured, regardless of configuration.
+ *
+ * Redaction relies on recognising key names; these endpoints exchange
+ * credentials in shapes we cannot reliably introspect, so we skip the body
+ * entirely rather than hope a key name matches.
+ */
+const AUTH_PATH_PATTERNS = ["/auth/", "/login", "/signin", "/session", "/token", "/oauth"];
 
 /**
  * Determine the HTTP method to use for a fetch request.
@@ -72,61 +95,6 @@ function isAuthUrl(url: string): boolean {
 }
 
 /**
- * Redacts values in a JSON string for object properties whose names match any provided substrings.
- *
- * Parses `text` as JSON, replaces values of properties whose key name contains any entry from `keys`
- * (case-insensitive substring match) with `"[REDACTED]"`, and returns the resulting JSON string.
- *
- * @param text - The JSON string to redact
- * @param keys - Substring keys used to identify property names to redact (case-insensitive)
- * @returns The JSON string with matching values replaced by `"[REDACTED]"`, or the original `text` if `keys` is empty or parsing/stringification fails
- */
-function redactJson(text: string, keys: string[]): string {
-  if (keys.length === 0) return text;
-  try {
-    const obj = JSON.parse(text);
-    redactObject(obj, keys);
-    return JSON.stringify(obj);
-  } catch {
-    return text;
-  }
-}
-
-/**
- * Recursively redacts properties whose key names contain any of the provided substrings.
- *
- * Walks objects and arrays in-place, replacing a property value with `"[REDACTED]"` when the property's key contains (case-insensitive substring match) any entry from `keys`. Non-object values are ignored.
- *
- * @param obj - The value to traverse and redact; only plain objects and arrays are modified in-place.
- * @param keys - Substring keys to match against object property names (case-insensitive).
- */
-function redactObject(obj: unknown, keys: string[]): void {
-  if (obj === null || typeof obj !== "object") return;
-  if (Array.isArray(obj)) {
-    for (const item of obj) redactObject(item, keys);
-    return;
-  }
-  for (const key of Object.keys(obj as Record<string, unknown>)) {
-    if (keys.some((k) => key.toLowerCase().includes(k.toLowerCase()))) {
-      (obj as Record<string, unknown>)[key] = "[REDACTED]";
-    } else {
-      redactObject((obj as Record<string, unknown>)[key], keys);
-    }
-  }
-}
-
-/**
- * Truncates a string to a maximum length and appends an indicator when truncated.
- *
- * @param text - The input string to truncate
- * @param max - Maximum allowed length of the returned string
- * @returns The original `text` if its length is less than or equal to `max`, otherwise the first `max` characters followed by "…[truncated]"
- */
-function truncate(text: string, max: number): string {
-  return text.length > max ? text.slice(0, max) + "…[truncated]" : text;
-}
-
-/**
  * Determines whether an HTTP method typically includes a request body.
  *
  * @param method - The HTTP method name
@@ -143,15 +111,36 @@ export class NetworkLogger {
   private originalXhrSend: typeof XMLHttpRequest.prototype.send | null = null;
   private logs: NetworkLogEntry[] = [];
   private recording = false;
-  private options: Required<NetworkLoggerOptions>;
+  private readonly options: {
+    captureRequestBodies: boolean;
+    captureResponseBodies: boolean;
+    maxBodySize: number;
+  };
+  private readonly privacy: ResolvedPrivacy;
 
   constructor(options: NetworkLoggerOptions = {}) {
     this.options = {
       captureRequestBodies: options.captureRequestBodies ?? false,
       captureResponseBodies: options.captureResponseBodies ?? false,
       maxBodySize: options.maxBodySize ?? DEFAULT_MAX_BODY_SIZE,
-      redactBodyKeys: options.redactBodyKeys ?? DEFAULT_REDACT_KEYS,
     };
+
+    // `redactBodyKeys` predates the unified privacy config; fold it in so both
+    // spellings work and neither can narrow the defaults.
+    this.privacy = resolvePrivacy({
+      ...options.privacy,
+      redactLogKeys: [...(options.privacy?.redactLogKeys ?? []), ...(options.redactBodyKeys ?? [])],
+    });
+  }
+
+  /** Strip credential-bearing parameters before a URL is ever stored. */
+  private safeUrl(url: string): string {
+    return redactUrl(url, this.privacy);
+  }
+
+  /** Redact and truncate a captured body to the configured limit. */
+  private safeBody(raw: string): string {
+    return truncate(redactJson(raw, this.privacy.redactLogKeys), this.options.maxBodySize);
   }
 
   start(): void {
@@ -206,20 +195,18 @@ export class NetworkLogger {
     globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const started = nowMs();
       const method = resolveMethod(input, init);
-      const url = resolveUrl(input);
+      const rawUrl = resolveUrl(input);
+      const url = self.safeUrl(rawUrl);
       const timestamp = new Date().toISOString();
-      const shouldCaptureBody = !isAuthUrl(url);
+      const shouldCaptureBody = !isAuthUrl(rawUrl);
 
       let requestBody: string | undefined;
       if (self.options.captureRequestBodies && shouldCaptureBody && hasBody(method) && init?.body) {
         try {
           const raw = typeof init.body === "string" ? init.body : JSON.stringify(init.body);
-          requestBody = truncate(
-            redactJson(raw, self.options.redactBodyKeys),
-            self.options.maxBodySize,
-          );
+          requestBody = self.safeBody(raw);
         } catch {
-          // skip body capture
+          // A body we cannot serialize is a body we cannot redact — skip it.
         }
       }
 
@@ -231,12 +218,9 @@ export class NetworkLogger {
           try {
             const clone = response.clone();
             const text = await clone.text();
-            responseBody = truncate(
-              redactJson(text, self.options.redactBodyKeys),
-              self.options.maxBodySize,
-            );
+            responseBody = self.safeBody(text);
           } catch {
-            // skip body capture
+            // Body already consumed or unreadable — omit rather than guess.
           }
         }
 
@@ -297,21 +281,19 @@ export class NetworkLogger {
       body?: Document | XMLHttpRequestBodyInit | null,
     ) {
       const method = ((this as unknown as Record<string, unknown>).__qb_method as string) || "GET";
-      const url = ((this as unknown as Record<string, unknown>).__qb_url as string) || "";
+      const rawUrl = ((this as unknown as Record<string, unknown>).__qb_url as string) || "";
+      const url = self.safeUrl(rawUrl);
       const started = nowMs();
       const timestamp = new Date().toISOString();
-      const shouldCaptureBody = !isAuthUrl(url);
+      const shouldCaptureBody = !isAuthUrl(rawUrl);
 
       let requestBody: string | undefined;
       if (self.options.captureRequestBodies && shouldCaptureBody && hasBody(method) && body) {
         try {
           const raw = typeof body === "string" ? body : JSON.stringify(body);
-          requestBody = truncate(
-            redactJson(raw, self.options.redactBodyKeys),
-            self.options.maxBodySize,
-          );
+          requestBody = self.safeBody(raw);
         } catch {
-          // skip
+          // A body we cannot serialize is a body we cannot redact — skip it.
         }
       }
 
@@ -321,13 +303,10 @@ export class NetworkLogger {
           try {
             const text = typeof this.responseText === "string" ? this.responseText : "";
             if (text) {
-              responseBody = truncate(
-                redactJson(text, self.options.redactBodyKeys),
-                self.options.maxBodySize,
-              );
+              responseBody = self.safeBody(text);
             }
           } catch {
-            // skip
+            // responseText throws for non-text responseTypes — omit the body.
           }
         }
 

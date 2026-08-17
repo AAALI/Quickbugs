@@ -11,8 +11,8 @@ import {
   useState,
 } from "react";
 
-import { BugReporter } from "../core/BugReporter";
-import type { CaptureRegion, ScreenshotPrivacyOptions } from "../core/ScreenshotCapturer";
+import { BugReporter } from "@quick-bug-reporter/core";
+import type { CaptureRegion, PrivacyOptions } from "@quick-bug-reporter/core";
 import {
   BreadcrumbCapture,
   ConsoleCapture,
@@ -49,7 +49,7 @@ type BugReporterProviderProps = {
   // SDK-06: Breadcrumb configuration
   breadcrumbs?: BreadcrumbConfig | false;
   // SDK-09: Privacy options
-  privacy?: ScreenshotPrivacyOptions;
+  privacy?: PrivacyOptions;
 };
 
 type ScreenshotAnnotationState = {

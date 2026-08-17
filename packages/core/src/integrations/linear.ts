@@ -1,3 +1,4 @@
+import { redactUrl, resolvePrivacy } from "../privacy";
 import {
   BugReportPayload,
   BugReporterIntegration,
@@ -8,6 +9,15 @@ import {
   formatNetworkLogs,
   toBlobFile,
 } from "../types";
+
+/**
+ * Built-in privacy defaults.
+ *
+ * These integrations post to the customer's own tracker, but a ticket is
+ * visible to their whole org — a token in a captured URL would leak just as
+ * surely there. Defaults apply unconditionally.
+ */
+const DEFAULT_PRIVACY = resolvePrivacy();
 
 type LinearGraphQLError = {
   message?: string;
@@ -92,7 +102,7 @@ function buildCleanDescription(
     "### Context",
     `- Reported At: ${payload.stoppedAt}`,
     `- Capture Mode: ${payload.captureMode === "screenshot" ? "Screenshot" : "Video"}`,
-    `- Page URL: ${payload.pageUrl || "Unknown"}`,
+    `- Page URL: ${payload.pageUrl ? redactUrl(payload.pageUrl, DEFAULT_PRIVACY) : "Unknown"}`,
     "",
   ];
 
