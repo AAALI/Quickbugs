@@ -1,4 +1,5 @@
 import { NetworkLogger } from "../NetworkLogger";
+import { createReportId } from "../reportId";
 import type { PrivacyOptions } from "../privacy";
 import {
   type BugSessionArtifacts,
@@ -102,6 +103,7 @@ export class BugSession {
       const stoppedAtMs = Date.now();
 
       const artifacts: BugSessionArtifacts = {
+        reportId: createReportId(),
         videoBlob: null,
         screenshotBlob,
         networkLogs,
@@ -220,6 +222,7 @@ export class BugSession {
 
     const stoppedAtMs = Date.now();
     const artifacts: BugSessionArtifacts = {
+      reportId: createReportId(),
       videoBlob,
       screenshotBlob: null,
       networkLogs,

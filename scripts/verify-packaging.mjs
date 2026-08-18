@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const PACKAGES = ["core", "react", "vue", "vanilla"];
+const PACKAGES = ["core", "ingest", "react", "vue", "vanilla"];
 
 /** Collect every path a consumer could resolve from the manifest. */
 function declaredEntryPoints(pkg) {

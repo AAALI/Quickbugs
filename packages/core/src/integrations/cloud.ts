@@ -7,6 +7,7 @@ import {
   formatConsoleLogs,
   formatJsErrors,
   formatNetworkLogs,
+  REPORT_SCHEMA_VERSION,
 } from "../types";
 
 // SDK-05: Custom metadata hook type
@@ -97,6 +98,13 @@ export class CloudIntegration implements BugReporterIntegration {
     // Build FormData so we can include binary attachments
     const fd = new FormData();
     fd.set("project_key", this.projectKey);
+    fd.set("schema_version", REPORT_SCHEMA_VERSION);
+
+    // Sent so a retried submission is recognised as the same report rather
+    // than stored twice. Absent only for callers building payloads by hand.
+    if (payload.clientReportId) {
+      fd.set("client_report_id", payload.clientReportId);
+    }
     fd.set("title", payload.title);
     fd.set("description", payload.description || "");
 

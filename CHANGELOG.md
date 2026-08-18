@@ -1,5 +1,64 @@
 # Changelog
 
+## [Unreleased] — ingest 0.1.0 / SDK 1.7.0 / core 1.4.0
+
+Adds the server side. A design partner can now install the SDK and have reports
+land in a real datastore, which is what the concierge phase of the go-to-market
+plan depends on.
+
+### New: `@quick-bug-reporter/ingest`
+
+The wire contract, a parser, and a runtime-agnostic request handler. Storage is
+injected, so one implementation serves both hosted and self-hosted deployments
+with no second copy of the validation rules.
+
+- `contract.ts` is now the single declaration of what the SDK sends. A contract
+  test drives the real `CloudIntegration` and parses whatever it actually posts,
+  so a field added to the SDK but not declared here fails the build instead of
+  silently vanishing from every report. Writing that test immediately found two
+  fields — `battery_level` and `free_storage_mb` — the SDK sends and no server
+  would have stored.
+- Attachment allow-listing by content type, per-attachment and per-request size
+  limits, and field length limits.
+- Errors carry a stable `code`, an HTTP status, and a `retryable` flag.
+  Configuration problems are permanent; only infrastructure failures retry.
+- Unknown and revoked project keys are rejected identically, so the endpoint is
+  not a key-validity oracle.
+- Origin allow-listing with single-label wildcards. Documented as a spend
+  control against a scraped key, never as authentication.
+
+### Idempotent submission
+
+Each capture is stamped with a `client_report_id` at capture time rather than at
+submit time. A submission that times out can be retried with the same id and
+returns the original report, so a user never re-records a bug they already
+filed.
+
+- `BugSessionArtifacts` gains a required `reportId`.
+- `BugReportPayload` gains an optional `clientReportId`.
+- `CloudIntegration` sends `client_report_id` and `schema_version`.
+- `createReportId()` falls back past `crypto.randomUUID` — that API is
+  secure-context only, so a team testing on a plain `http://` staging host would
+  otherwise have crashed on capture.
+
+### Reference deployment
+
+`supabase/` contains a migration and an Edge Function adapter: projects,
+reports, attachments in private storage, RLS for the dashboard, retention, and
+a per-report webhook for the concierge loop. The adapter is thin by design —
+every rule lives in the tested package.
+
+Its README lists what the deployment does **not** do yet (no rate limiting, no
+virus scanning, single-owner projects, no tracker forwarding) so nothing gets
+promised to a customer that is not there.
+
+### Testing
+
+- 150 tests, up from 92.
+- Vitest now runs two projects: `sdk` under jsdom and `server` under node.
+  jsdom cannot parse a multipart body containing Blob parts, which is exactly
+  what a report is.
+
 ## [Unreleased] — SDK 1.6.0 / core 1.3.0
 
 First release since February 2026. Consolidates the capture engine, makes

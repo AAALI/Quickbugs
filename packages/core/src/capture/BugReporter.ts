@@ -123,6 +123,7 @@ export class BugReporter {
       captureHasMic,
       user: options.user,
       breadcrumbs: options.breadcrumbs,
+      clientReportId: artifacts.reportId,
     };
 
     options.onProgress?.("Submitting to " + this.integration.provider + "…");

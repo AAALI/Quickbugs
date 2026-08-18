@@ -1,6 +1,6 @@
 {
   "name": "quick-bug-reporter",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Zero-dependency bug reporter for any web app \u2014 screenshot, video capture, and Linear/Jira/Cloud integration via script tag or npm.",
   "homepage": "https://github.com/AAALI/Quickbugs/tree/main/packages/vanilla#readme",
   "repository": {

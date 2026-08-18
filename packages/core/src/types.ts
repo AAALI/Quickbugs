@@ -4,6 +4,15 @@ export type { ConsoleLogEntry, CapturedJsError };
 
 export const DEFAULT_MAX_RECORDING_MS = 2 * 60 * 1000;
 
+/**
+ * Wire format version sent with every report.
+ *
+ * Must match `SCHEMA_VERSION` in `@quick-bug-reporter/ingest`. The two are kept
+ * as separate constants so the browser SDK carries no dependency on server
+ * code; a contract test in the ingest package fails if they ever drift.
+ */
+export const REPORT_SCHEMA_VERSION = "1.0";
+
 export type BugTrackerProvider = "linear" | "jira" | "cloud";
 
 export type ReportCaptureMode = "video" | "screenshot" | "none";
@@ -114,6 +123,11 @@ export type BugClientMetadata = {
 };
 
 export type BugSessionArtifacts = {
+  /**
+   * Identifier for this capture, stable across submission retries so the
+   * server can discard duplicates instead of creating them.
+   */
+  reportId: string;
   videoBlob: Blob | null;
   screenshotBlob: Blob | null;
   networkLogs: NetworkLogEntry[];
@@ -154,6 +168,8 @@ export type BugReportPayload = {
   customMetadata?: Record<string, string | number | boolean | null>;
   // SDK-06
   breadcrumbs?: BreadcrumbEntry[];
+  /** Capture id, forwarded as `client_report_id` for idempotent ingest. */
+  clientReportId?: string;
 };
 
 export type BugSubmitResult = {

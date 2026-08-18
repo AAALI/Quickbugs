@@ -1,6 +1,6 @@
 {
   "name": "quick-bug-reporter-vue",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Drop-in bug reporter for Vue 3 apps \u2014 screenshot, video capture, annotation, and Linear/Jira/Cloud integration.",
   "homepage": "https://github.com/AAALI/Quickbugs/tree/main/packages/vue#readme",
   "repository": {
