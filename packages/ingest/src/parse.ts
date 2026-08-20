@@ -144,7 +144,10 @@ function readAttachment(form: FormData, name: AttachmentName): ParsedAttachment 
     blob,
     contentType,
     sizeBytes: blob.size,
-    fileName: value instanceof File ? value.name : undefined,
+    // `File` is not a global on every runtime this package targets, so probe
+    // for it rather than assume — the same guard NetworkLogger uses for
+    // `Request`.
+    fileName: typeof File !== "undefined" && value instanceof File ? value.name : undefined,
   };
 }
 
