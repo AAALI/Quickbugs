@@ -34,6 +34,18 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  packages/ingest:
+    devDependencies:
+      '@quick-bug-reporter/core':
+        specifier: workspace:*
+        version: link:../core
+      tsup:
+        specifier: ^8.4.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.8)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+
   packages/react:
     dependencies:
       '@quick-bug-reporter/core':

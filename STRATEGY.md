@@ -194,6 +194,21 @@ only genuinely defensible moat in this document.
 
 ---
 
+## Build status
+
+_Updated 18 August 2026._
+
+| Phase | State |
+| --- | --- |
+| 1 — Stop the bleeding | **Done.** Capture engine consolidated, privacy defaults unconditional, 150 tests, CI on every PR, two packaging bugs fixed. Not yet published to npm — that is a tag push and a founder decision. |
+| 2 — Sell before building | **Blocked on you.** The engineering dependency is cleared: `packages/ingest` plus `supabase/` means a design partner can install the SDK today and reports land in a real datastore with a webhook ping. The ten conversations are yours to have. |
+| 3 — Build what partners block on | **Ingest done. Inbox not started.** Hosted ingest, idempotent submission, origin rules, retention, and RLS are in. The report list and detail views are the next chunk, and should be built against what partners actually ask for rather than ahead of it. |
+| 4 — Ship the differentiator | Not started. MCP server and agent export. |
+
+The one thing worth repeating: Phase 3's inbox should stay unbuilt until Phase 2
+produces paying partners. The ingest was worth building ahead of them only
+because the concierge motion cannot start without it.
+
 ## 5. Ninety days
 
 The roadmap's sequencing is its main flaw: it places five releases of

@@ -1,6 +1,6 @@
 {
   "name": "quick-bug-reporter-react",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "description": "Drop-in bug reporter for React apps \u2014 screenshot, video capture, annotation, and Linear/Jira integration.",
   "homepage": "https://github.com/AAALI/Quickbugs/tree/main/packages/react#readme",
   "repository": {

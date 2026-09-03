@@ -30,6 +30,7 @@
 | [`packages/vue`](./packages/vue) | [`quick-bug-reporter-vue`](https://www.npmjs.com/package/quick-bug-reporter-vue) | Vue 3 composable wrapper |
 | [`packages/vanilla`](./packages/vanilla) | [`quick-bug-reporter`](https://www.npmjs.com/package/quick-bug-reporter) | Vanilla JS / script tag |
 | [`packages/core`](./packages/core) | [`@quick-bug-reporter/core`](https://www.npmjs.com/package/@quick-bug-reporter/core) | Framework-agnostic capture engine |
+| [`packages/ingest`](./packages/ingest) | [`@quick-bug-reporter/ingest`](https://www.npmjs.com/package/@quick-bug-reporter/ingest) | Server-side ingest contract, parser, and handler |
 
 ---
 
@@ -215,9 +216,32 @@ over it — they must not fork it.
 │  Integration Targets                                 │
 │  • Jira API (via your proxy)                        │
 │  • Linear GraphQL (via your proxy)                  │
-│  • QuickBugs Cloud API (managed)                    │
+│  • QuickBugs ingest (hosted or self-hosted)         │
+└─────────────────────────────────────────────────────┘
+              │
+              ▼
+┌─────────────────────────────────────────────────────┐
+│  @quick-bug-reporter/ingest        (server side)     │
+│  • The wire contract both sides compile against     │
+│  • Parsing, limits, origin rules, idempotency       │
+│  • Storage injected — hosted and self-hosted share  │
+│    one implementation                                │
 └─────────────────────────────────────────────────────┘
 ```
+
+## Running your own ingest
+
+The SDK can post to your own server instead of QuickBugs Cloud. The handler is
+published, so you implement four storage methods and nothing else:
+
+```ts
+import { createIngestHandler } from '@quick-bug-reporter/ingest'
+
+const handler = createIngestHandler({ store: yourStore })
+```
+
+A working Supabase deployment — schema, Edge Function, RLS, retention — is in
+[`supabase/`](./supabase), including an honest list of what it does not do yet.
 
 ---
 

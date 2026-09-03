@@ -21,6 +21,8 @@ export type { NetworkLoggerOptions } from "./NetworkLogger";
 
 export { BreadcrumbCapture } from "./BreadcrumbCapture";
 
+export { createReportId } from "./reportId";
+
 // --- Privacy --------------------------------------------------------------
 
 export {
@@ -60,6 +62,7 @@ export type {
 } from "./types";
 export {
   DEFAULT_MAX_RECORDING_MS,
+  REPORT_SCHEMA_VERSION,
   formatConsoleLogs,
   formatJsErrors,
   formatNetworkLogs,

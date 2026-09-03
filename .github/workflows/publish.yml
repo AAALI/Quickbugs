@@ -12,13 +12,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Version comes from package.json's `packageManager` field. Setting it
+      # here too makes action-setup@v4 fail with a version-mismatch error.
       - uses: pnpm/action-setup@v4
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: pnpm
 
